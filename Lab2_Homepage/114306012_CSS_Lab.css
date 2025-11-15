@@ -1,0 +1,89 @@
+.head{
+  background-color: #3da8f5;
+  color: white;
+  text-align: center;
+  padding: 40px 10px;
+  font-family: arial, sans-serif;
+}
+
+.head h1 {
+  font-size: 40px;
+  margin: 0;
+  font-weight: bold;
+  text-align: center;
+}
+
+body{
+  color: black;
+  background-color: white;
+  font-family: helvetica,sans-serif;
+}
+
+.navbar {
+  list-style: none;
+  margin-top: 0;
+  padding-left: 0;
+  width: 100%;
+  display: flex;
+  background-color: #1c2733;
+  color: white;
+  justify-content: space-evenly;
+}
+
+.navbar li {
+  position: relative;
+}
+
+.navbar > li > a {
+  display: block;
+  padding: 15px 30px;
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.navbar > li > a:hover {
+  color: #3da8f5;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  top: 52px;
+  background-color: #1c2733;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  min-width: 200px;
+  padding: 5px 0;
+}
+
+.dropdown-content li a {
+  color: white;
+  padding: 12px 20px;
+  display: block;
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.dropdown-content li a:hover {
+  background-color: #2f3a47;
+}
+
+.dropdown:hover .dropdown-content {
+  display: block;
+}
+
+.content {
+  padding: 30px;
+  font-size: 20px;
+}
+
+.email {
+  background-color: #3da8f5;
+  padding: 3px 8px;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+}
