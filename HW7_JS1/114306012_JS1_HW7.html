@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>114306012_HW7_1A2B</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:20px}
+    .record{margin-top:1rem}
+    .record li{margin-bottom:.4rem}
+    input[type="text"]{width:120px;padding:6px}
+    button{padding:6px 10px}
+  </style>
+</head>
+<body>
+  <h1>114306012_HW7_1A2B</h1>
+
+  <p>Enter 4 unique numbers
+
+  <input id="guessInput" type="text" maxlength="4" placeholder="4 digits" />
+  <button id="guessBtn">Guess!</button>
+  <button id="resetBtn">Reset!</button>
+
+  </p>
+
+  <div class="record">
+    <h3>Game Record :</h3>
+    <ol id="history"></ol>
+  </div>
+
+  <script>
+    // generate 4 unique digits (0-9) as string
+    function generateAnswer(){
+      var digits = ['0','1','2','3','4','5','6','7','8','9'];
+      var ansArr = [];
+      for (var i = 0; i < 4; i++){
+        var idx = Math.floor(Math.random() * digits.length);
+        ansArr.push(digits.splice(idx,1)[0]);
+      }
+      return ansArr.join('');
+    }
+
+    function isValid(str){
+      if (str.length !== 4) return false;
+      if (!/^[0-9]{4}$/.test(str)) return false;
+      var set = new Set(str.split(''));
+      return set.size === 4;
+    }
+
+    function checkAB(guess, ans){
+      var A = 0, B = 0;
+      for (var i = 0; i < 4; i++){
+        if (guess[i] === ans[i]) A++;
+        else if (ans.indexOf(guess[i]) !== -1) B++;
+      }
+      return A + 'A' + B + 'B';
+    }
+
+    (function(){
+      var answer = generateAnswer();
+      var attempts = 0;
+      var history = document.getElementById('history');
+      var input = document.getElementById('guessInput');
+      var btn = document.getElementById('guessBtn');
+      var reset = document.getElementById('resetBtn');
+
+      btn.addEventListener('click', function(){
+        var val = input.value.trim();
+        if (!isValid(val)){
+          alert('輸入錯誤：請輸入 4 位不重複的數字（僅允許 0-9）。');
+          return;
+        }
+
+        attempts++;
+        var result = checkAB(val, answer);
+
+        var li = document.createElement('li');
+        li.textContent = '第' + attempts + '次: ' + val + ' -> ' + result;
+        history.appendChild(li);
+
+        input.value = '';
+        input.focus();
+
+        if (result === '4A0B'){
+          alert('恭喜你猜對了！總共嘗試次數：' + attempts);
+          // Optionally disable further input
+          input.disabled = true;
+          btn.disabled = true;
+        }
+      });
+
+      reset.addEventListener('click', function(){
+        answer = generateAnswer();
+        attempts = 0;
+        history.innerHTML = '';
+        input.value = '';
+        input.disabled = false;
+        btn.disabled = false;
+        input.focus();
+        alert('已重置遊戲。');
+      });
+
+      // set initial focus
+      input.focus();
+
+      // For debugging during development you can uncomment:
+      // console.log('answer (for dev):', answer);
+    })();
+  </script>
+</body>
+</html>
