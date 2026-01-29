@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>專業代購小舖</title>
+    <style>
+        :root { --primary-color: #ff6b6b; --bg-color: #f9f9f9; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg-color); margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; }
+        
+        /* 匯率與標題區 */
+        header { text-align: center; margin-bottom: 30px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .rate-box { color: var(--primary-color); font-weight: bold; font-size: 1.2rem; }
+
+        /* 商品展示網格 */
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .card { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); }
+        .card img { width: 100%; height: 200px; object-fit: cover; }
+        .card-body { padding: 15px; }
+        .price-tag { color: #e67e22; font-size: 1.1rem; margin: 10px 0; }
+        
+        /* 按鈕 */
+        button { width: 100%; background: var(--primary-color); color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-size: 1rem; }
+        button:hover { background: #ee5253; }
+
+        /* 代購清單 */
+        #cart { margin-top: 40px; background: #34495e; color: white; padding: 20px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🇯🇵 日本連線代購小舖</h1>
+        <div class="rate-box">今日匯率：1 JPY = <span id="current-rate">0.22</span> TWD</div>
+    </header>
+
+    <div class="product-grid" id="product-list">
+        </div>
+
+    <div id="cart">
+        <h2>預計代購清單</h2>
+        <ul id="cart-items"></ul>
+        <hr>
+        <h3>總計台幣：$ <span id="total-price">0</span></h3>
+    </div>
+</div>
+
+<script>
+// 這裡直接填入你發布的那個 pubhtml 網址
+const pubHtmlUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRHGwThk_vg5u8xAd731JxncAjy-pWKuIUM3SXhvc7JR96OdrP_4tpgvLTg6K8kTHZ0yZzeBBE_Q5ZE/pubhtml';
+
+// 轉換網址格式，讓它變成 CSV 格式方便程式讀取
+const csvUrl = pubHtmlUrl.replace('/pubhtml', '/pub?output=csv');
+
+const rate = 0.22;
+let cart = [];
+
+async function fetchProducts() {
+    try {
+        const response = await fetch(csvUrl);
+        const text = await response.text();
+        
+        // 1. 把資料按「行」拆開，並濾掉完全空白的行
+        const rows = text.split(/\r?\n/).filter(row => row.trim() !== "");
+        
+        // 2. 移除第一行標題
+        const dataRows = rows.slice(1);
+
+        const liveProducts = dataRows.map(row => {
+            // 3. 處理 CSV 的逗號拆分
+            const cols = row.split(',');
+            
+            // 4. 清理每個欄位的空格與奇怪符號
+            return {
+                id: cols[0] ? cols[0].trim() : "",
+                name: cols[1] ? cols[1].trim() : "無名商品",
+                jpy: cols[2] ? parseFloat(cols[2].replace(/[^\d.]/g, '')) : 0, // 只留數字
+                img: cols[3] ? cols[3].trim() : ""
+            };
+        });
+
+        console.log("最終解析成功的資料：", liveProducts);
+        renderProducts(liveProducts);
+
+    } catch (error) {
+        console.error("抓取過程出錯：", error);
+        document.getElementById('product-list').innerHTML = "資料加載失敗，請檢查網路。";
+    }
+}
+
+function renderProducts(data) {
+    const list = document.getElementById('product-list');
+    if (!list) return;
+
+    list.innerHTML = data.map(p => {
+        // 洗掉可能存在的雙引號
+        const name = p.name ? p.name.replace(/"/g, "") : "未命名商品";
+        const img = p.img ? p.img.replace(/"/g, "") : "";
+        
+        return `
+            <div class="card">
+                <img src="${img || 'https://via.placeholder.com/250x200?text=No+Image'}" alt="${name}">
+                <div class="card-body">
+                    <h3>${name}</h3>
+                    <p class="price-tag">日幣：¥${p.jpy} / <strong>台幣：$${Math.round(p.jpy * 0.22)}</strong></p>
+                    <button onclick="addToCart('${name}', ${p.jpy})">加入代購單</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function addToCart(name, jpy) {
+    cart.push({ name, jpy });
+    updateCart();
+}
+
+function updateCart() {
+    const cartList = document.getElementById('cart-items');
+    const totalSpan = document.getElementById('total-price');
+    cartList.innerHTML = cart.map(item => `<li>${item.name} - $${Math.round(item.jpy * rate)}</li>`).join('');
+    const total = cart.reduce((sum, item) => sum + Math.round(item.jpy * rate), 0);
+    totalSpan.innerText = total.toLocaleString();
+}
+
+// 啟動！
+fetchProducts();
+</script>
+<div id="cart">
+    <h2>預計代購清單</h2>
+    <ul id="cart-items"></ul>
+    
+    <div style="margin: 20px 0;">
+        <input type="text" id="user-name" placeholder="您的稱呼" style="padding: 8px; width: 45%;">
+        <input type="text" id="user-note" placeholder="備註 (如：顏色、尺寸)" style="padding: 8px; width: 45%;">
+    </div>
+
+    <hr>
+    <h3>總計台幣：$ <span id="total-price">0</span></h3>
+    
+    <button onclick="sendToLine()" style="background-color: #06C755; font-weight: bold;">
+        LINE 一鍵下單
+    </button>
+</div>
+
+<script>
+    // 在原本的 script 標籤內最後面加上這個 Function
+    function sendToLine() {
+        if (cart.length === 0) {
+            alert("購物車是空的喔！");
+            return;
+        }
+
+        const userName = document.getElementById('user-name').value || "未填寫";
+        const userNote = document.getElementById('user-note').value || "無";
+        const totalPrice = document.getElementById('total-price').innerText;
+
+        // 1. 整理訂單文字內容
+        let message = `📝 新代購訂單\n`;
+        message += `------------------\n`;
+        message += `👤 訂購人：${userName}\n`;
+        
+        cart.forEach((item, index) => {
+            message += `${index + 1}. ${item.name} (¥${item.jpy})\n`;
+        });
+
+        message += `------------------\n`;
+        message += `💰 總計台幣：$${totalPrice}\n`;
+        message += `💬 備註：${userNote}\n`;
+        message += `------------------\n`;
+        message += `(此訊息由代購網頁自動產生)`;
+
+        // 2. 編碼文字並跳轉 LINE
+        // 請把 '你的LINE_ID' 換成你真正的 LINE ID 或官方帳號連結
+        const lineUrl = `https://line.me/R/msg/text/?${encodeURIComponent(message)}`;
+        
+        window.open(lineUrl, '_blank');
+    }
+</script>
+
+</body>
+</html>
