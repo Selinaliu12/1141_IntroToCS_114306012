@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>專業分帳紀錄系統</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; max-width: 600px; margin: 2rem auto; padding: 1.5rem; background-color: #f4f7f6; color: #333; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2, h3 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        label { display: block; margin-top: 10px; font-weight: bold; font-size: 0.9rem; }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        button { background: #28a745; color: white; border: none; cursor: pointer; transition: 0.3s; font-weight: bold; }
+        button:hover { background: #218838; }
+        .btn-calc { background: #007bff; margin-top: 20px; }
+        .btn-calc:hover { background: #0069d9; }
+        
+        /* 列表樣式 */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; }
+        th, td { border: 1px solid #eee; padding: 10px; text-align: left; }
+        th { background-color: #f8f9fa; }
+        .result-box { background: #e7f3ff; padding: 15px; border-radius: 8px; border-left: 5px solid #007bff; margin-top: 20px; }
+        .summary { color: #666; font-size: 0.9rem; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>💰 多人分帳紀錄</h2>
+        <label>1. 設定參與者 (第一次輸入後即可固定)</label>
+        <input type="text" id="names" placeholder="例如: 小明, 小華, 大強">
+        
+        <hr>
+        
+        <label>2. 新增支出項目</label>
+        <input type="date" id="date">
+        <input type="text" id="payerName" placeholder="墊款人姓名">
+        <input type="number" id="amount" placeholder="金額">
+        <input type="text" id="note" placeholder="備註 (例如: 晚餐、計程車)">
+        <button onclick="addRecord()">➕ 新增這筆紀錄</button>
+    </div>
+
+    <div class="card">
+        <h3>📄 支出清單</h3>
+        <table id="recordTable">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>墊款人</th>
+                    <th>項目</th>
+                    <th>金額</th>
+                </tr>
+            </thead>
+            <tbody id="logBody"></tbody>
+        </table>
+        <p id="totalInfo" class="summary">總計金額: $0</p>
+        
+        <button class="btn-calc" onclick="calculateFinal()">🚀 開始結算</button>
+    </div>
+
+    <div id="resultArea"></div>
+
+    <script>
+        let records = [];
+        let totalSpent = 0;
+
+        // 初始化日期為今天
+        document.getElementById('date').valueAsDate = new Date();
+
+        function addRecord() {
+            const date = document.getElementById('date').value;
+            const payer = document.getElementById('payerName').value.trim();
+            const amount = parseFloat(document.getElementById('amount').value);
+            const note = document.getElementById('note').value.trim() || "未備註";
+
+            if (!payer || isNaN(amount)) {
+                alert("請填寫墊款人與正確金額！");
+                return;
+            }
+
+            const record = { date, payer, amount, note };
+            records.push(record);
+            totalSpent += amount;
+
+            // 更新表格
+            const row = `<tr>
+                <td>${date}</td>
+                <td>${payer}</td>
+                <td>${note}</td>
+                <td>$${amount.toLocaleString()}</td>
+            </tr>`;
+            document.getElementById('logBody').innerHTML += row;
+            document.getElementById('totalInfo').innerText = `總計金額: $${totalSpent.toLocaleString()}`;
+
+            // 清空部分輸入框
+            document.getElementById('amount').value = "";
+            document.getElementById('note').value = "";
+        }
+
+        function calculateFinal() {
+            const nameInput = document.getElementById('names').value;
+            if (!nameInput) return alert("請先在上方輸入所有參與者姓名！");
+
+            let participants = nameInput.split(/[,，\s]+/).map(n => n.trim()).filter(n => n !== "");
+            const count = participants.length;
+            const share = totalSpent / count;
+
+            // 初始化淨值表 (墊的錢 - 應付的錢)
+            let netValues = {};
+            participants.forEach(p => netValues[p] = -share);
+
+            // 加上每個人實際墊的錢
+            records.forEach(r => {
+                if (netValues.hasOwnProperty(r.payer)) {
+                    netValues[r.payer] += r.amount;
+                } else {
+                    // 如果墊錢的人不在初始名單，自動加入
+                    netValues[r.payer] = r.amount - share;
+                    participants.push(r.payer);
+                }
+            });
+
+            let debtors = [];
+            let creditors = [];
+
+            for (let p in netValues) {
+                if (netValues[p] < -0.01) debtors.push({ name: p, amount: -netValues[p] });
+                else if (netValues[p] > 0.01) creditors.push({ name: p, amount: netValues[p] });
+            }
+
+            let resultHtml = `<div class="card result-box"><h3>💡 結算建議</h3>`;
+            resultHtml += `<p>每人平均應付: <b>$${share.toFixed(2)}</b></p><hr>`;
+
+            // 債務抵銷計算
+            debtors.forEach(d => {
+                creditors.forEach(c => {
+                    if (d.amount <= 0) return;
+                    let pay = Math.min(d.amount, c.amount);
+                    if (pay > 0) {
+                        resultHtml += `<p>🚩 <b>${d.name}</b> 應給 <b>${c.name}</b> 💵 <b>$${pay.toFixed(2)}</b></p>`;
+                        d.amount -= pay;
+                        c.amount -= pay;
+                    }
+                });
+            });
+
+            if (totalSpent === 0) resultHtml += "<p>尚無任何支出記錄。</p>";
+            resultHtml += `</div>`;
+            document.getElementById('resultArea').innerHTML = resultHtml;
+        }
+    </script>
+</body>
+</html>
