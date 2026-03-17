@@ -1,0 +1,713 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --nav-w: 200px;
+    --accent: #2563eb;
+  }
+  body-wrap { display: block; }
+  #app {
+    display: flex;
+    min-height: 600px;
+    font-family: var(--font-sans);
+    background: var(--color-background-tertiary);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    border: 0.5px solid var(--color-border-tertiary);
+  }
+  /* Sidebar */
+  #sidebar {
+    width: var(--nav-w);
+    background: var(--color-background-primary);
+    border-right: 0.5px solid var(--color-border-tertiary);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    flex-shrink: 0;
+  }
+  .app-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    padding: 0 16px 20px;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    margin-bottom: 12px;
+    letter-spacing: -0.3px;
+  }
+  .app-title span { font-size: 11px; color: var(--color-text-tertiary); display: block; font-weight: 400; margin-top: 2px; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-radius: 0;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    transition: background 0.15s;
+    border-left: 2px solid transparent;
+  }
+  .nav-item:hover { background: var(--color-background-secondary); }
+  .nav-item.active { color: var(--color-text-primary); background: var(--color-background-secondary); border-left-color: #2563eb; font-weight: 500; }
+  .nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
+  .nav-summary { margin-top: auto; padding: 16px; border-top: 0.5px solid var(--color-border-tertiary); }
+  .nav-summary p { font-size: 11px; color: var(--color-text-tertiary); line-height: 1.6; }
+
+  /* Main */
+  #main {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .panel { display: none; flex-direction: column; height: 100%; }
+  .panel.active { display: flex; }
+  .panel-header {
+    padding: 16px 20px;
+    background: var(--color-background-primary);
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .panel-header h2 { font-size: 15px; font-weight: 500; color: var(--color-text-primary); }
+  .panel-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+  .btn-add {
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: var(--border-radius-md);
+    border: 0.5px solid var(--color-border-secondary);
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-add:hover { background: var(--color-background-secondary); }
+
+  /* ===== ACCOUNTING ===== */
+  .acct-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px; }
+  .stat-card .label { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 4px; }
+  .stat-card .val { font-size: 20px; font-weight: 500; color: var(--color-text-primary); }
+  .val.income { color: #16a34a; }
+  .val.expense { color: #dc2626; }
+  .val.balance.pos { color: #2563eb; }
+  .val.balance.neg { color: #dc2626; }
+  .acct-list { display: flex; flex-direction: column; gap: 6px; }
+  .acct-row {
+    display: flex;
+    align-items: center;
+    background: var(--color-background-primary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-md);
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .acct-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .acct-cat { font-size: 12px; color: var(--color-text-tertiary); width: 60px; flex-shrink: 0; }
+  .acct-note { font-size: 13px; color: var(--color-text-primary); flex: 1; }
+  .acct-date { font-size: 11px; color: var(--color-text-tertiary); }
+  .acct-amt { font-size: 14px; font-weight: 500; margin-left: auto; }
+  .acct-amt.inc { color: #16a34a; }
+  .acct-amt.exp { color: #dc2626; }
+  .del-btn { font-size: 11px; color: var(--color-text-tertiary); cursor: pointer; padding: 2px 4px; border-radius: 3px; }
+  .del-btn:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+  .empty-hint { text-align: center; color: var(--color-text-tertiary); font-size: 13px; padding: 40px 0; }
+
+  /* Modal */
+  .modal-bg {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: var(--color-background-primary);
+    border-radius: var(--border-radius-lg);
+    padding: 20px;
+    width: 320px;
+    border: 0.5px solid var(--color-border-tertiary);
+  }
+  .modal h3 { font-size: 14px; font-weight: 500; margin-bottom: 14px; }
+  .form-row { margin-bottom: 10px; }
+  .form-row label { font-size: 12px; color: var(--color-text-secondary); display: block; margin-bottom: 4px; }
+  .form-row input, .form-row select, .form-row textarea {
+    width: 100%;
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: var(--border-radius-md);
+    border: 0.5px solid var(--color-border-secondary);
+    background: var(--color-background-secondary);
+    color: var(--color-text-primary);
+  }
+  .form-row textarea { height: 70px; resize: vertical; }
+  .modal-btns { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; }
+  .btn-cancel { font-size: 12px; padding: 6px 12px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: none; color: var(--color-text-secondary); cursor: pointer; }
+  .btn-save { font-size: 12px; padding: 6px 14px; border-radius: var(--border-radius-md); border: none; background: #2563eb; color: white; cursor: pointer; font-weight: 500; }
+  .type-toggle { display: flex; gap: 6px; }
+  .type-btn { flex: 1; padding: 6px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: none; cursor: pointer; font-size: 12px; color: var(--color-text-secondary); }
+  .type-btn.sel-inc { background: #dcfce7; color: #16a34a; border-color: #86efac; }
+  .type-btn.sel-exp { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+
+  /* ===== BOOKMARKS ===== */
+  .bk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .bk-card {
+    background: var(--color-background-primary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-md);
+    padding: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    position: relative;
+  }
+  .bk-card:hover { border-color: var(--color-border-secondary); }
+  .bk-favicon { width: 20px; height: 20px; border-radius: 4px; background: var(--color-background-secondary); display: flex; align-items: center; justify-content: center; font-size: 10px; margin-bottom: 8px; color: var(--color-text-secondary); overflow: hidden; }
+  .bk-favicon img { width: 100%; height: 100%; object-fit: cover; }
+  .bk-name { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bk-url { font-size: 11px; color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bk-tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--color-background-secondary); color: var(--color-text-secondary); margin-top: 6px; }
+  .bk-del { position: absolute; top: 6px; right: 6px; font-size: 11px; color: var(--color-text-tertiary); cursor: pointer; padding: 2px 4px; border-radius: 3px; opacity: 0; }
+  .bk-card:hover .bk-del { opacity: 1; }
+  .bk-del:hover { background: var(--color-background-secondary); }
+  .bk-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tag-filter {
+    font-size: 11px; padding: 4px 10px; border-radius: 20px;
+    border: 0.5px solid var(--color-border-secondary);
+    background: none; cursor: pointer; color: var(--color-text-secondary);
+  }
+  .tag-filter.active { background: #2563eb; color: white; border-color: #2563eb; }
+
+  /* ===== MEMO ===== */
+  .memo-layout { display: grid; grid-template-columns: 200px 1fr; gap: 12px; height: 100%; }
+  .memo-list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+  .memo-item {
+    padding: 10px 12px;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    border: 0.5px solid transparent;
+    background: var(--color-background-primary);
+  }
+  .memo-item:hover { border-color: var(--color-border-tertiary); }
+  .memo-item.active { border-color: #2563eb; background: var(--color-background-secondary); }
+  .memo-item-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .memo-item-preview { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .memo-item-date { font-size: 10px; color: var(--color-text-tertiary); margin-top: 4px; }
+  .memo-editor { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+  .memo-title-input {
+    font-size: 16px; font-weight: 500;
+    border: none; outline: none;
+    background: none;
+    color: var(--color-text-primary);
+    padding: 4px 0;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+  }
+  .memo-body-input {
+    flex: 1; min-height: 200px;
+    border: none; outline: none;
+    background: none;
+    color: var(--color-text-primary);
+    font-size: 13px; line-height: 1.7;
+    resize: none;
+  }
+  .memo-actions { display: flex; gap: 8px; align-items: center; }
+  .memo-saved { font-size: 11px; color: var(--color-text-tertiary); margin-left: auto; }
+  .btn-new-memo { font-size: 11px; padding: 5px 10px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: none; color: var(--color-text-secondary); cursor: pointer; }
+  .btn-new-memo:hover { background: var(--color-background-secondary); }
+  .btn-del-memo { font-size: 11px; padding: 5px 10px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: none; color: #dc2626; cursor: pointer; }
+  .memo-placeholder { display: flex; align-items: center; justify-content: center; flex: 1; color: var(--color-text-tertiary); font-size: 13px; }
+
+  /* ===== CALENDAR ===== */
+  .cal-layout { display: grid; grid-template-columns: 1fr 220px; gap: 16px; }
+  .cal-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .cal-header-row h3 { font-size: 15px; font-weight: 500; flex: 1; }
+  .cal-nav { padding: 4px 8px; border: 0.5px solid var(--color-border-secondary); background: none; border-radius: var(--border-radius-md); cursor: pointer; color: var(--color-text-primary); font-size: 14px; }
+  .cal-grid-head { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 4px; }
+  .cal-day-name { text-align: center; font-size: 11px; color: var(--color-text-tertiary); padding: 4px 0; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-cell {
+    aspect-ratio: 1;
+    border-radius: var(--border-radius-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 4px 2px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    position: relative;
+    transition: background 0.1s;
+  }
+  .cal-cell:hover { background: var(--color-background-secondary); }
+  .cal-cell.today .cal-num { background: #2563eb; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-weight: 500; }
+  .cal-cell.other-month { color: var(--color-text-tertiary); opacity: 0.5; }
+  .cal-cell.has-event::after { content: ''; display: block; width: 4px; height: 4px; border-radius: 50%; background: #2563eb; margin-top: 2px; }
+  .cal-num { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+  .cal-events { display: flex; flex-direction: column; gap: 6px; }
+  .cal-events h4 { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 6px; }
+  .cal-event-item {
+    background: var(--color-background-primary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-left: 3px solid #2563eb;
+    border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .cal-event-title { font-weight: 500; color: var(--color-text-primary); }
+  .cal-event-time { color: var(--color-text-tertiary); margin-top: 2px; }
+  .cal-event-del { float: right; cursor: pointer; color: var(--color-text-tertiary); }
+  .cal-event-del:hover { color: #dc2626; }
+  .cal-selected-date { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 10px; }
+</style>
+
+<div id="app" style="position: relative;">
+  <div id="sidebar">
+    <div class="app-title">個人管理 <span>My Hub</span></div>
+    <div class="nav-item active" onclick="switchTab('acct')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="7" cy="15" r="1" fill="currentColor"/></svg>
+      記帳
+    </div>
+    <div class="nav-item" onclick="switchTab('bk')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3h14a2 2 0 0 1 2 2v16l-7-3-7 3V5a2 2 0 0 1 2-2z"/></svg>
+      網站書籤
+    </div>
+    <div class="nav-item" onclick="switchTab('memo')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+      備忘錄
+    </div>
+    <div class="nav-item" onclick="switchTab('cal')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+      行事曆
+    </div>
+    <div class="nav-summary">
+      <p id="nav-summary-text"></p>
+    </div>
+  </div>
+
+  <div id="main">
+    <!-- ===== ACCOUNTING ===== -->
+    <div class="panel active" id="panel-acct">
+      <div class="panel-header">
+        <h2>記帳</h2>
+        <button class="btn-add" onclick="openModal('acct')">+ 新增</button>
+      </div>
+      <div class="panel-body">
+        <div class="acct-stats">
+          <div class="stat-card"><div class="label">本月收入</div><div class="val income" id="stat-income">NT$ 0</div></div>
+          <div class="stat-card"><div class="label">本月支出</div><div class="val expense" id="stat-expense">NT$ 0</div></div>
+          <div class="stat-card"><div class="label">結餘</div><div class="val balance pos" id="stat-balance">NT$ 0</div></div>
+        </div>
+        <div class="acct-list" id="acct-list"></div>
+      </div>
+    </div>
+
+    <!-- ===== BOOKMARKS ===== -->
+    <div class="panel" id="panel-bk">
+      <div class="panel-header">
+        <h2>網站書籤</h2>
+        <button class="btn-add" onclick="openModal('bk')">+ 新增</button>
+      </div>
+      <div class="panel-body">
+        <div class="bk-filter" id="bk-filter"></div>
+        <div class="bk-grid" id="bk-grid"></div>
+      </div>
+    </div>
+
+    <!-- ===== MEMO ===== -->
+    <div class="panel" id="panel-memo">
+      <div class="panel-header">
+        <h2>備忘錄</h2>
+        <button class="btn-add" onclick="newMemo()">+ 新增</button>
+      </div>
+      <div class="panel-body" style="overflow: hidden;">
+        <div class="memo-layout">
+          <div class="memo-list" id="memo-list"></div>
+          <div class="memo-editor" id="memo-editor">
+            <div class="memo-placeholder">選擇或新增備忘錄</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CALENDAR ===== -->
+    <div class="panel" id="panel-cal">
+      <div class="panel-header">
+        <h2>行事曆</h2>
+        <button class="btn-add" onclick="openModal('cal')">+ 新增</button>
+      </div>
+      <div class="panel-body">
+        <div class="cal-layout">
+          <div>
+            <div class="cal-header-row">
+              <button class="cal-nav" onclick="calMove(-1)">‹</button>
+              <h3 id="cal-month-label"></h3>
+              <button class="cal-nav" onclick="calMove(1)">›</button>
+            </div>
+            <div class="cal-grid-head">
+              <div class="cal-day-name">日</div><div class="cal-day-name">一</div>
+              <div class="cal-day-name">二</div><div class="cal-day-name">三</div>
+              <div class="cal-day-name">四</div><div class="cal-day-name">五</div>
+              <div class="cal-day-name">六</div>
+            </div>
+            <div class="cal-grid" id="cal-grid"></div>
+          </div>
+          <div>
+            <div class="cal-selected-date" id="cal-selected-label">今天的行程</div>
+            <div class="cal-events" id="cal-events-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+  <div class="modal-bg" id="modal-bg" onclick="closeModalBg(event)">
+    <!-- Accounting -->
+    <div class="modal" id="modal-acct">
+      <h3>新增帳目</h3>
+      <div class="form-row">
+        <label>類型</label>
+        <div class="type-toggle">
+          <button class="type-btn sel-inc" id="type-inc" onclick="setType('income')">收入</button>
+          <button class="type-btn" id="type-exp" onclick="setType('expense')">支出</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>金額 (NT$)</label>
+        <input type="number" id="acct-amount" placeholder="0" />
+      </div>
+      <div class="form-row">
+        <label>類別</label>
+        <select id="acct-cat">
+          <option value="餐飲">餐飲</option><option value="交通">交通</option>
+          <option value="購物">購物</option><option value="娛樂">娛樂</option>
+          <option value="醫療">醫療</option><option value="薪資">薪資</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>備註</label>
+        <input type="text" id="acct-note" placeholder="說明..." />
+      </div>
+      <div class="form-row">
+        <label>日期</label>
+        <input type="date" id="acct-date" />
+      </div>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeModal()">取消</button>
+        <button class="btn-save" onclick="saveAcct()">儲存</button>
+      </div>
+    </div>
+    <!-- Bookmark -->
+    <div class="modal" id="modal-bk" style="display:none;">
+      <h3>新增書籤</h3>
+      <div class="form-row"><label>網站名稱</label><input type="text" id="bk-name" placeholder="Google" /></div>
+      <div class="form-row"><label>網址</label><input type="text" id="bk-url" placeholder="https://..." /></div>
+      <div class="form-row"><label>標籤</label><input type="text" id="bk-tag" placeholder="工作、新聞..." /></div>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeModal()">取消</button>
+        <button class="btn-save" onclick="saveBk()">儲存</button>
+      </div>
+    </div>
+    <!-- Calendar -->
+    <div class="modal" id="modal-cal" style="display:none;">
+      <h3>新增行程</h3>
+      <div class="form-row"><label>標題</label><input type="text" id="cal-title" placeholder="行程名稱" /></div>
+      <div class="form-row"><label>日期</label><input type="date" id="cal-date" /></div>
+      <div class="form-row"><label>時間</label><input type="time" id="cal-time" /></div>
+      <div class="form-row"><label>備註</label><textarea id="cal-note" placeholder="說明..."></textarea></div>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeModal()">取消</button>
+        <button class="btn-save" onclick="saveCal()">儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const today = new Date();
+let state = {
+  acct: [
+    { id:1, type:'income', amount:42000, cat:'薪資', note:'三月薪資', date: fmt(today) },
+    { id:2, type:'expense', amount:320, cat:'餐飲', note:'午餐便當', date: fmt(today) },
+    { id:3, type:'expense', amount:1200, cat:'交通', note:'捷運月票', date: fmt(new Date(today.getFullYear(), today.getMonth(), 5)) },
+  ],
+  bookmarks: [
+    { id:1, name:'YouTube', url:'https://youtube.com', tag:'娛樂' },
+    { id:2, name:'GitHub', url:'https://github.com', tag:'工作' },
+    { id:3, name:'Google Maps', url:'https://maps.google.com', tag:'生活' },
+    { id:4, name:'ChatGPT', url:'https://chat.openai.com', tag:'工具' },
+  ],
+  memos: [
+    { id:1, title:'購物清單', body:'• 牛奶\n• 雞蛋\n• 洗碗精', updated: new Date().toISOString() },
+    { id:2, title:'工作待辦', body:'1. 完成報告\n2. 回覆 email\n3. 準備會議', updated: new Date().toISOString() },
+  ],
+  events: [
+    { id:1, title:'每週例會', date: fmt(today), time:'10:00', note:'' },
+    { id:2, title:'健身', date: fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate()+2)), time:'19:00', note:'' },
+  ],
+  currentTab: 'acct',
+  acctType: 'income',
+  calYear: today.getFullYear(),
+  calMonth: today.getMonth(),
+  calSelected: fmt(today),
+  activeBookmarkTag: 'all',
+  activeMemoId: null,
+  nextId: 10,
+};
+
+function fmt(d) {
+  return d.getFullYear()+'-'+(String(d.getMonth()+1).padStart(2,'0'))+'-'+(String(d.getDate()).padStart(2,'0'));
+}
+
+function switchTab(tab) {
+  state.currentTab = tab;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(el => el.classList.remove('active'));
+  const idx = ['acct','bk','memo','cal'].indexOf(tab);
+  document.querySelectorAll('.nav-item')[idx].classList.add('active');
+  document.getElementById('panel-'+tab).classList.add('active');
+  render();
+}
+
+function render() {
+  renderAcct();
+  renderBk();
+  renderMemoList();
+  renderCal();
+  renderSummary();
+}
+
+// ===== ACCOUNTING =====
+function renderAcct() {
+  const now = new Date();
+  const ym = now.getFullYear()+'-'+(String(now.getMonth()+1).padStart(2,'0'));
+  const monthly = state.acct.filter(a => a.date.startsWith(ym));
+  const income = monthly.filter(a=>a.type==='income').reduce((s,a)=>s+a.amount,0);
+  const expense = monthly.filter(a=>a.type==='expense').reduce((s,a)=>s+a.amount,0);
+  const balance = income - expense;
+  document.getElementById('stat-income').textContent = 'NT$ '+income.toLocaleString();
+  document.getElementById('stat-expense').textContent = 'NT$ '+expense.toLocaleString();
+  const balEl = document.getElementById('stat-balance');
+  balEl.textContent = 'NT$ '+Math.abs(balance).toLocaleString()+(balance<0?' (負)':'');
+  balEl.className = 'val balance '+(balance>=0?'pos':'neg');
+
+  const dotColors = { 薪資:'#16a34a',餐飲:'#f59e0b',交通:'#3b82f6',購物:'#a855f7',娛樂:'#ec4899',醫療:'#14b8a6',其他:'#6b7280' };
+  const list = [...state.acct].sort((a,b)=>b.date.localeCompare(a.date));
+  const el = document.getElementById('acct-list');
+  if (!list.length) { el.innerHTML = '<div class="empty-hint">還沒有帳目，點「新增」開始記錄</div>'; return; }
+  el.innerHTML = list.map(a=>`
+    <div class="acct-row">
+      <div class="acct-dot" style="background:${dotColors[a.cat]||'#6b7280'}"></div>
+      <div class="acct-cat">${a.cat}</div>
+      <div class="acct-note">${a.note||'—'}</div>
+      <div class="acct-date">${a.date}</div>
+      <div class="acct-amt ${a.type==='income'?'inc':'exp'}">${a.type==='income'?'+':'-'}NT$ ${a.amount.toLocaleString()}</div>
+      <span class="del-btn" onclick="delAcct(${a.id})">✕</span>
+    </div>
+  `).join('');
+}
+function delAcct(id) { state.acct = state.acct.filter(a=>a.id!==id); renderAcct(); renderSummary(); }
+
+// ===== BOOKMARKS =====
+function renderBk() {
+  const tags = ['all', ...new Set(state.bookmarks.map(b=>b.tag))];
+  const filterEl = document.getElementById('bk-filter');
+  filterEl.innerHTML = tags.map(t=>`<button class="tag-filter ${state.activeBookmarkTag===t?'active':''}" onclick="setBkTag('${t}')">${t==='all'?'全部':t}</button>`).join('');
+  const filtered = state.activeBookmarkTag==='all' ? state.bookmarks : state.bookmarks.filter(b=>b.tag===state.activeBookmarkTag);
+  const grid = document.getElementById('bk-grid');
+  if (!filtered.length) { grid.innerHTML = '<div class="empty-hint">還沒有書籤</div>'; return; }
+  grid.innerHTML = filtered.map(b=>{
+    const domain = b.url.replace('https://','').replace('http://','').split('/')[0];
+    const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    return `<div class="bk-card" onclick="openBk(${b.id})">
+      <div class="bk-favicon"><img src="${faviconUrl}" onerror="this.parentElement.textContent='🔗'" /></div>
+      <div class="bk-name">${b.name}</div>
+      <div class="bk-url">${domain}</div>
+      <div class="bk-tag">${b.tag}</div>
+      <span class="bk-del" onclick="event.stopPropagation();delBk(${b.id})">✕</span>
+    </div>`;
+  }).join('');
+}
+function setBkTag(t) { state.activeBookmarkTag=t; renderBk(); }
+function openBk(id) { const b=state.bookmarks.find(x=>x.id===id); if(b) window.open(b.url,'_blank'); }
+function delBk(id) { state.bookmarks=state.bookmarks.filter(b=>b.id!==id); renderBk(); renderSummary(); }
+
+// ===== MEMO =====
+function renderMemoList() {
+  const el = document.getElementById('memo-list');
+  el.innerHTML = state.memos.map(m=>`
+    <div class="memo-item ${state.activeMemoId===m.id?'active':''}" onclick="openMemo(${m.id})">
+      <div class="memo-item-title">${m.title||'（無標題）'}</div>
+      <div class="memo-item-preview">${m.body.replace(/\n/g,' ').substring(0,30)||'空白備忘錄'}</div>
+      <div class="memo-item-date">${m.updated.substring(0,10)}</div>
+    </div>
+  `).join('');
+}
+function openMemo(id) {
+  state.activeMemoId = id;
+  renderMemoList();
+  const m = state.memos.find(x=>x.id===id);
+  const ed = document.getElementById('memo-editor');
+  ed.innerHTML = `
+    <input class="memo-title-input" id="memo-title-inp" value="${m.title}" placeholder="標題" oninput="autoSaveMemo()">
+    <textarea class="memo-body-input" id="memo-body-inp" placeholder="開始輸入..." oninput="autoSaveMemo()">${m.body}</textarea>
+    <div class="memo-actions">
+      <button class="btn-del-memo" onclick="delMemo(${id})">刪除</button>
+      <span class="memo-saved" id="memo-saved-hint">已儲存</span>
+    </div>
+  `;
+}
+let memoTimer;
+function autoSaveMemo() {
+  clearTimeout(memoTimer);
+  document.getElementById('memo-saved-hint').textContent = '儲存中...';
+  memoTimer = setTimeout(()=>{
+    const m = state.memos.find(x=>x.id===state.activeMemoId);
+    if(m) {
+      m.title = document.getElementById('memo-title-inp').value;
+      m.body = document.getElementById('memo-body-inp').value;
+      m.updated = new Date().toISOString();
+      document.getElementById('memo-saved-hint').textContent = '已儲存';
+      renderMemoList();
+    }
+  }, 600);
+}
+function newMemo() {
+  const id = ++state.nextId;
+  state.memos.unshift({ id, title:'', body:'', updated: new Date().toISOString() });
+  renderMemoList();
+  openMemo(id);
+}
+function delMemo(id) {
+  state.memos = state.memos.filter(m=>m.id!==id);
+  state.activeMemoId = null;
+  document.getElementById('memo-editor').innerHTML = '<div class="memo-placeholder">選擇或新增備忘錄</div>';
+  renderMemoList();
+  renderSummary();
+}
+
+// ===== CALENDAR =====
+function renderCal() {
+  const y = state.calYear, mo = state.calMonth;
+  document.getElementById('cal-month-label').textContent = `${y} 年 ${mo+1} 月`;
+  const firstDay = new Date(y, mo, 1).getDay();
+  const daysInMonth = new Date(y, mo+1, 0).getDate();
+  const daysInPrev = new Date(y, mo, 0).getDate();
+  const todayStr = fmt(today);
+  const grid = document.getElementById('cal-grid');
+  let cells = '';
+  for (let i=0; i<firstDay; i++) {
+    const d = daysInPrev - firstDay + 1 + i;
+    cells += `<div class="cal-cell other-month"><div class="cal-num">${d}</div></div>`;
+  }
+  for (let d=1; d<=daysInMonth; d++) {
+    const dateStr = `${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = dateStr === todayStr;
+    const hasEv = state.events.some(e=>e.date===dateStr);
+    cells += `<div class="cal-cell ${isToday?'today':''} ${hasEv?'has-event':''}" onclick="selectCalDate('${dateStr}')"><div class="cal-num">${d}</div></div>`;
+  }
+  grid.innerHTML = cells;
+  renderCalEvents();
+}
+function calMove(dir) {
+  state.calMonth += dir;
+  if (state.calMonth > 11) { state.calMonth=0; state.calYear++; }
+  if (state.calMonth < 0) { state.calMonth=11; state.calYear--; }
+  renderCal();
+}
+function selectCalDate(d) {
+  state.calSelected = d;
+  renderCalEvents();
+}
+function renderCalEvents() {
+  const d = state.calSelected;
+  const label = document.getElementById('cal-selected-label');
+  label.textContent = d === fmt(today) ? '今天的行程' : `${d} 的行程`;
+  const evs = state.events.filter(e=>e.date===d).sort((a,b)=>a.time.localeCompare(b.time));
+  const el = document.getElementById('cal-events-list');
+  if (!evs.length) { el.innerHTML = '<div style="font-size:12px;color:var(--color-text-tertiary);">沒有行程</div>'; return; }
+  el.innerHTML = evs.map(e=>`
+    <div class="cal-event-item">
+      <span class="cal-event-del" onclick="delEvent(${e.id})">✕</span>
+      <div class="cal-event-title">${e.title}</div>
+      <div class="cal-event-time">${e.time}${e.note?' · '+e.note:''}</div>
+    </div>
+  `).join('');
+}
+function delEvent(id) { state.events=state.events.filter(e=>e.id!==id); renderCal(); }
+
+// ===== SUMMARY =====
+function renderSummary() {
+  const ym = today.getFullYear()+'-'+(String(today.getMonth()+1).padStart(2,'0'));
+  const expense = state.acct.filter(a=>a.type==='expense'&&a.date.startsWith(ym)).reduce((s,a)=>s+a.amount,0);
+  const todayEvs = state.events.filter(e=>e.date===fmt(today)).length;
+  document.getElementById('nav-summary-text').innerHTML =
+    `本月支出 NT$${expense.toLocaleString()}<br>書籤 ${state.bookmarks.length} 個<br>備忘錄 ${state.memos.length} 篇<br>今日行程 ${todayEvs} 個`;
+}
+
+// ===== MODAL =====
+let activeModal = '';
+function openModal(type) {
+  activeModal = type;
+  document.getElementById('modal-bg').classList.add('open');
+  ['acct','bk','cal'].forEach(t=>{ document.getElementById('modal-'+t).style.display = t===type?'block':'none'; });
+  if (type==='acct') {
+    document.getElementById('acct-amount').value='';
+    document.getElementById('acct-note').value='';
+    document.getElementById('acct-date').value = fmt(today);
+    setType('income');
+  }
+  if (type==='cal') {
+    document.getElementById('cal-title').value='';
+    document.getElementById('cal-date').value = state.calSelected||fmt(today);
+    document.getElementById('cal-time').value='09:00';
+    document.getElementById('cal-note').value='';
+  }
+  if (type==='bk') {
+    document.getElementById('bk-name').value='';
+    document.getElementById('bk-url').value='';
+    document.getElementById('bk-tag').value='';
+  }
+}
+function closeModal() { document.getElementById('modal-bg').classList.remove('open'); }
+function closeModalBg(e) { if(e.target.id==='modal-bg') closeModal(); }
+
+function setType(t) {
+  state.acctType = t;
+  document.getElementById('type-inc').className = 'type-btn '+(t==='income'?'sel-inc':'');
+  document.getElementById('type-exp').className = 'type-btn '+(t==='expense'?'sel-exp':'');
+}
+function saveAcct() {
+  const amt = parseFloat(document.getElementById('acct-amount').value);
+  if (!amt||isNaN(amt)) return;
+  state.acct.push({ id:++state.nextId, type:state.acctType, amount:Math.round(amt), cat:document.getElementById('acct-cat').value, note:document.getElementById('acct-note').value, date:document.getElementById('acct-date').value });
+  closeModal(); renderAcct(); renderSummary();
+}
+function saveBk() {
+  const name = document.getElementById('bk-name').value.trim();
+  let url = document.getElementById('bk-url').value.trim();
+  if (!name||!url) return;
+  if (!url.startsWith('http')) url='https://'+url;
+  const tag = document.getElementById('bk-tag').value.trim()||'其他';
+  state.bookmarks.push({ id:++state.nextId, name, url, tag });
+  closeModal(); renderBk(); renderSummary();
+}
+function saveCal() {
+  const title = document.getElementById('cal-title').value.trim();
+  const date = document.getElementById('cal-date').value;
+  if (!title||!date) return;
+  state.events.push({ id:++state.nextId, title, date, time:document.getElementById('cal-time').value, note:document.getElementById('cal-note').value });
+  closeModal(); renderCal(); renderSummary();
+}
+
+render();
+</script>
