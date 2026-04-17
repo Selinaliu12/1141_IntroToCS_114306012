@@ -1,0 +1,588 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:transparent}
+:root{--green:#3B6D11;--green-l:#EAF3DE;--green-m:#97C459;--amber:#BA7517;--amber-l:#FAEEDA;--teal:#0F6E56;--teal-l:#E1F5EE;--blue:#185FA5;--blue-l:#E6F1FB;--purple:#534AB7;--purple-l:#EEEDFE}
+.app{max-width:390px;margin:0 auto;background:var(--color-background-primary);border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);overflow:hidden;min-height:700px;position:relative;display:flex;flex-direction:column}
+.status-bar{background:var(--green);color:#EAF3DE;font-size:11px;padding:6px 16px;display:flex;justify-content:space-between;align-items:center}
+.nav-tabs{display:flex;background:var(--color-background-secondary);border-bottom:0.5px solid var(--color-border-tertiary)}
+.tab{flex:1;padding:10px 4px 8px;font-size:11px;color:var(--color-text-secondary);text-align:center;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab.active{color:var(--green);border-bottom-color:var(--green);font-weight:500}
+.tab-icon{font-size:16px;display:block;margin-bottom:2px}
+.page{display:none;flex:1;overflow-y:auto;padding:0}
+.page.active{display:block}
+
+/* MAP PAGE */
+.map-container{position:relative;height:260px;background:linear-gradient(160deg,#d4edda 0%,#c8e6c9 40%,#dcedc8 70%,#f1f8e9 100%);overflow:hidden}
+.map-grid{position:absolute;inset:0;opacity:.15;background-image:repeating-linear-gradient(0deg,#3B6D11 0,#3B6D11 1px,transparent 1px,transparent 28px),repeating-linear-gradient(90deg,#3B6D11 0,#3B6D11 1px,transparent 1px,transparent 28px)}
+.map-road-h{position:absolute;background:#d4c5b0;height:8px;left:0;right:0}
+.map-road-v{position:absolute;background:#d4c5b0;width:8px;top:0;bottom:0}
+.map-bldg{position:absolute;background:#b0bec5;border-radius:2px;opacity:.6}
+.station-dot{position:absolute;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;transform:translate(-50%,-50%);transition:transform .2s;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.station-dot:hover{transform:translate(-50%,-50%) scale(1.2)}
+.station-dot.nearby{animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 2px 8px rgba(59,109,17,.2),0 0 0 0 rgba(59,109,17,.4)}50%{box-shadow:0 2px 8px rgba(59,109,17,.2),0 0 0 8px rgba(59,109,17,0)}}
+.user-dot{position:absolute;width:20px;height:20px;background:#185FA5;border-radius:50%;border:3px solid #fff;transform:translate(-50%,-50%);box-shadow:0 0 0 4px rgba(24,95,165,.2)}
+.station-popup{position:absolute;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 12px;font-size:12px;min-width:140px;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.station-popup h4{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px}
+.map-controls{position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:6px}
+.map-btn{width:32px;height:32px;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+.nearby-panel{margin:12px;background:var(--teal-l);border-radius:var(--border-radius-lg);padding:12px;border:0.5px solid #9FE1CB}
+.nearby-panel h3{font-size:13px;font-weight:500;color:var(--teal);margin-bottom:8px}
+.station-list-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid #9FE1CB}
+.station-list-item:last-child{border-bottom:none}
+.station-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.station-info{flex:1}
+.station-name{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.station-dist{font-size:11px;color:var(--color-text-secondary)}
+.bonus-badge{background:var(--amber-l);color:var(--amber);font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:0.5px solid #FAC775}
+.bonus-badge.hot{background:#FCEBEB;color:#A32D2D;border-color:#F7C1C1}
+.qr-btn{background:var(--green);color:#EAF3DE;font-size:12px;font-weight:500;padding:6px 14px;border-radius:20px;border:none;cursor:pointer;margin-top:10px;width:100%}
+
+/* PIKMIN WALK PAGE */
+.walk-header{background:var(--green);padding:20px 16px 24px;text-align:center;color:#EAF3DE}
+.walk-header h2{font-size:22px;font-weight:500;letter-spacing:.5px}
+.walk-header p{font-size:12px;opacity:.8;margin-top:4px}
+.step-counter{background:var(--color-background-primary);margin:-16px 16px 0;border-radius:var(--border-radius-lg);padding:16px;border:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;gap:16px}
+.step-num{font-size:32px;font-weight:500;color:var(--green)}
+.step-label{font-size:12px;color:var(--color-text-secondary)}
+.step-unit{font-size:13px;color:var(--color-text-secondary);font-weight:500}
+.path-card{margin:12px;background:var(--green-l);border-radius:var(--border-radius-lg);padding:14px;border:0.5px solid #C0DD97}
+.path-card h3{font-size:13px;font-weight:500;color:var(--green);margin-bottom:10px}
+.path-steps{display:flex;flex-direction:column;gap:8px}
+.path-step{display:flex;align-items:center;gap:10px}
+.step-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0}
+.step-circle.done{background:var(--green);color:#EAF3DE}
+.step-circle.current{background:var(--amber);color:#fff;animation:pulse-amber 1.5s ease-in-out infinite}
+@keyframes pulse-amber{0%,100%{box-shadow:0 0 0 0 rgba(186,117,23,.4)}50%{box-shadow:0 0 0 6px rgba(186,117,23,0)}}
+.step-circle.todo{background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary)}
+.step-line{flex:1;height:0.5px;background:var(--color-border-tertiary)}
+.bonus-box{margin:12px;background:var(--amber-l);border-radius:var(--border-radius-lg);padding:14px;border:0.5px solid #FAC775;text-align:center}
+.bonus-box .bonus-num{font-size:36px;font-weight:500;color:var(--amber)}
+.bonus-box p{font-size:12px;color:var(--amber);margin-top:2px}
+.mascots{display:flex;justify-content:center;gap:12px;margin:12px}
+.mascot{text-align:center;cursor:pointer}
+.mascot-avatar{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 4px;border:2px solid transparent;transition:all .2s}
+.mascot-avatar:hover{transform:scale(1.1)}
+.mascot-name{font-size:10px;color:var(--color-text-secondary)}
+.mascot.locked .mascot-avatar{filter:grayscale(1) opacity(.4);background:var(--color-background-secondary)!important}
+.mascot.locked .mascot-name{color:var(--color-text-tertiary)}
+
+/* BADGE PAGE */
+.badge-header{padding:16px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.badge-header h2{font-size:18px;font-weight:500;color:var(--color-text-primary)}
+.month-selector{display:flex;align-items:center;gap:8px;margin-top:8px}
+.month-btn{width:28px;height:28px;border-radius:50%;border:0.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;font-size:14px}
+.month-label{font-size:13px;font-weight:500;color:var(--color-text-primary);flex:1;text-align:center}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
+.stat-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px;text-align:center}
+.stat-card .val{font-size:22px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px}
+.stat-card .lbl{font-size:11px;color:var(--color-text-secondary)}
+.carbon-viz{margin:0 12px 12px;background:var(--green-l);border-radius:var(--border-radius-lg);padding:14px;border:0.5px solid #C0DD97}
+.carbon-viz h3{font-size:13px;font-weight:500;color:var(--green);margin-bottom:10px}
+.carbon-bar-wrap{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.carbon-bar-bg{flex:1;height:10px;background:var(--color-background-secondary);border-radius:5px;overflow:hidden}
+.carbon-bar-fill{height:100%;border-radius:5px;transition:width 1s ease}
+.carbon-label{font-size:11px;min-width:40px;text-align:right;color:var(--color-text-secondary)}
+.badges-section{padding:12px}
+.badges-section h3{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:10px}
+.badges-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.badge-item{text-align:center;padding:10px 6px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);cursor:pointer;transition:transform .2s;position:relative}
+.badge-item:hover{transform:scale(1.05)}
+.badge-emoji{font-size:26px;margin-bottom:4px}
+.badge-name{font-size:10px;color:var(--color-text-secondary)}
+.badge-item.earned{background:var(--green-l);border:0.5px solid #C0DD97}
+.badge-item.earned .badge-name{color:var(--green)}
+.badge-item.locked{opacity:.5}
+.new-badge{position:absolute;top:-4px;right:-4px;background:var(--amber);color:#fff;font-size:9px;font-weight:500;padding:1px 5px;border-radius:8px}
+
+/* SHOP PAGE */
+.shop-header{padding:14px 16px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between}
+.shop-header h2{font-size:18px;font-weight:500}
+.shop-filter{display:flex;gap:6px;padding:10px 12px;overflow-x:auto;scrollbar-width:none}
+.filter-pill{padding:5px 12px;border-radius:20px;font-size:12px;border:0.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;white-space:nowrap;transition:all .2s}
+.filter-pill.active{background:var(--green);color:#EAF3DE;border-color:var(--green)}
+.shop-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 12px 12px}
+.shop-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;cursor:pointer;transition:transform .15s}
+.shop-card:hover{transform:translateY(-2px)}
+.shop-img{height:90px;display:flex;align-items:center;justify-content:center;font-size:40px}
+.shop-info{padding:8px 10px}
+.shop-name{font-size:12px;font-weight:500;color:var(--color-text-primary)}
+.shop-brand{font-size:10px;color:var(--color-text-secondary);margin-top:1px}
+.shop-offer{font-size:10px;color:var(--green);font-weight:500;margin-top:4px}
+.eco-tag{display:inline-block;background:var(--green-l);color:var(--green);font-size:9px;padding:1px 6px;border-radius:8px;margin-top:4px}
+
+/* QR SCAN MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:var(--color-background-primary);border-radius:var(--border-radius-lg);padding:20px;width:100%;max-width:340px;text-align:center}
+.modal h3{font-size:16px;font-weight:500;margin-bottom:6px}
+.modal p{font-size:12px;color:var(--color-text-secondary);margin-bottom:16px}
+.qr-frame{width:160px;height:160px;border:3px solid var(--green);border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;position:relative;font-size:60px;background:var(--green-l)}
+.qr-corner{position:absolute;width:16px;height:16px;border-color:var(--green);border-style:solid}
+.qr-corner.tl{top:-3px;left:-3px;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
+.qr-corner.tr{top:-3px;right:-3px;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
+.qr-corner.bl{bottom:-3px;left:-3px;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
+.qr-corner.br{bottom:-3px;right:-3px;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+.scan-line{position:absolute;width:calc(100% - 12px);height:2px;background:var(--green);opacity:.8;animation:scan 2s ease-in-out infinite}
+@keyframes scan{0%{top:10px;opacity:1}50%{top:calc(100% - 12px);opacity:.6}100%{top:10px;opacity:1}}
+.modal-btns{display:flex;gap:8px;margin-top:8px}
+.modal-btn{flex:1;padding:10px;border-radius:var(--border-radius-md);font-size:13px;font-weight:500;cursor:pointer;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-primary)}
+.modal-btn.primary{background:var(--green);color:#EAF3DE;border-color:var(--green)}
+
+/* BONUS ANIMATION */
+.bonus-anim{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200;text-align:center;pointer-events:none;animation:bonusPop .8s ease forwards}
+@keyframes bonusPop{0%{opacity:0;transform:translate(-50%,-50%) scale(0.5)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-50%) scale(1) translateY(-40px)}}
+.bonus-anim-text{font-size:48px;font-weight:500;color:var(--amber)}
+.bonus-anim-sub{font-size:16px;color:var(--green)}
+
+/* NOTIFICATION */
+.notif{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--green);color:#EAF3DE;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:300;animation:slideDown .3s ease;box-shadow:0 4px 16px rgba(0,0,0,.2);white-space:nowrap}
+@keyframes slideDown{from{opacity:0;top:40px}to{opacity:1;top:60px}}
+
+.detail-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.detail-row:last-child{border-bottom:none}
+.detail-val{font-weight:500;color:var(--color-text-primary)}
+</style>
+
+<div class="app" id="app">
+  <div class="status-bar">
+    <span>配客嘉 PakYama</span>
+    <span style="display:flex;align-items:center;gap:6px">
+      <span style="background:rgba(255,255,255,.2);padding:1px 8px;border-radius:10px;font-size:10px">🌿 綠色會員</span>
+      <span>積分: <b id="pts">2,480</b></span>
+    </span>
+  </div>
+
+  <div class="nav-tabs">
+    <div class="tab active" onclick="switchTab('map')"><span class="tab-icon">🗺️</span>地圖</div>
+    <div class="tab" onclick="switchTab('walk')"><span class="tab-icon">👣</span>走路</div>
+    <div class="tab" onclick="switchTab('badge')"><span class="tab-icon">🏅</span>勳章</div>
+    <div class="tab" onclick="switchTab('shop')"><span class="tab-icon">🛍️</span>商店</div>
+  </div>
+
+  <!-- MAP PAGE -->
+  <div class="page active" id="page-map">
+    <div class="map-container" id="mapbox">
+      <div class="map-grid"></div>
+      <!-- Roads -->
+      <div class="map-road-h" style="top:90px"></div>
+      <div class="map-road-h" style="top:170px"></div>
+      <div class="map-road-v" style="left:120px"></div>
+      <div class="map-road-v" style="left:250px"></div>
+      <!-- Buildings -->
+      <div class="map-bldg" style="left:20px;top:20px;width:80px;height:60px"></div>
+      <div class="map-bldg" style="left:140px;top:20px;width:90px;height:60px"></div>
+      <div class="map-bldg" style="left:270px;top:20px;width:70px;height:55px"></div>
+      <div class="map-bldg" style="left:20px;top:105px;width:85px;height:55px"></div>
+      <div class="map-bldg" style="left:140px;top:105px;width:90px;height:55px"></div>
+      <div class="map-bldg" style="left:270px;top:105px;width:75px;height:55px"></div>
+      <div class="map-bldg" style="left:20px;top:185px;width:80px;height:55px"></div>
+      <div class="map-bldg" style="left:140px;top:185px;width:95px;height:55px"></div>
+      <div class="map-bldg" style="left:270px;top:185px;width:80px;height:55px"></div>
+      <!-- Stations -->
+      <div class="station-dot nearby" style="left:122px;top:90px;background:#3B6D11" onclick="showStation('捷運忠孝站','🚇',122,90)" title="捷運站">🚇</div>
+      <div class="station-dot" style="left:250px;top:170px;background:#185FA5" onclick="showStation('全家便利超商','🏪',250,170)" title="便利商店">🏪</div>
+      <div class="station-dot" style="left:60px;top:170px;background:#BA7517" onclick="showStation('社區管理中心','🏘️',60,170)" title="社區站點">🏘️</div>
+      <div class="station-dot" style="left:320px;top:90px;background:#993556" onclick="showStation('全聯福利中心','🛒',320,90)" title="超市">🛒</div>
+      <!-- User -->
+      <div class="user-dot" style="left:195px;top:135px" title="你的位置"></div>
+      <div id="station-popup" style="display:none" class="station-popup"></div>
+      <!-- Route line (SVG) -->
+      <svg style="position:absolute;inset:0;pointer-events:none" width="100%" height="100%">
+        <path id="route-path" d="" stroke="var(--green)" stroke-width="2.5" fill="none" stroke-dasharray="6 4" opacity="0" stroke-linecap="round"/>
+      </svg>
+      <div class="map-controls">
+        <div class="map-btn" onclick="findRoute()" title="最短路徑">🧭</div>
+        <div class="map-btn" onclick="showQR()" title="掃描QR">📷</div>
+      </div>
+    </div>
+    <div class="nearby-panel">
+      <h3>📍 附近回收站點</h3>
+      <div class="station-list-item">
+        <div class="station-icon" style="background:#d4edda">🚇</div>
+        <div class="station-info">
+          <div class="station-name">捷運忠孝復興站 B2</div>
+          <div class="station-dist">步行 3 分鐘 • 240 公尺</div>
+        </div>
+        <span class="bonus-badge hot">🔥 10x</span>
+      </div>
+      <div class="station-list-item">
+        <div class="station-icon" style="background:#E6F1FB">🏪</div>
+        <div class="station-info">
+          <div class="station-name">全家便利商店 忠孝店</div>
+          <div class="station-dist">步行 6 分鐘 • 520 公尺</div>
+        </div>
+        <span class="bonus-badge">3x</span>
+      </div>
+      <div class="station-list-item">
+        <div class="station-icon" style="background:#FAEEDA">🏘️</div>
+        <div class="station-info">
+          <div class="station-name">大安區社區服務站</div>
+          <div class="station-dist">步行 8 分鐘 • 680 公尺</div>
+        </div>
+        <span class="bonus-badge">2x</span>
+      </div>
+      <button class="qr-btn" onclick="showQR()">📦 掃描包材 QR Code 開始歸還</button>
+    </div>
+  </div>
+
+  <!-- WALK PAGE -->
+  <div class="page" id="page-walk">
+    <div class="walk-header">
+      <h2>👣 今日走路打卡</h2>
+      <p>走路越多、綠色加倍！</p>
+    </div>
+    <div class="step-counter">
+      <div>
+        <div class="step-num" id="step-display">6,284</div>
+        <div class="step-unit">步</div>
+      </div>
+      <div style="flex:1;margin-left:8px">
+        <div style="height:8px;background:var(--color-background-secondary);border-radius:4px;overflow:hidden;margin-bottom:6px">
+          <div style="width:63%;height:100%;background:var(--green-m);border-radius:4px;transition:width .5s"></div>
+        </div>
+        <div class="step-label">目標 10,000 步 • 已完成 63%</div>
+        <div class="step-label" style="margin-top:2px">今日距離：4.7 公里</div>
+      </div>
+      <div style="font-size:28px;cursor:pointer" onclick="addSteps()" title="走路！">🦶</div>
+    </div>
+
+    <div class="path-card" style="margin-top:12px">
+      <h3>🧭 最短路徑任務（10x 獎勵）</h3>
+      <div class="path-steps">
+        <div class="path-step">
+          <div class="step-circle done">✓</div>
+          <div style="font-size:12px;flex:1"><b>掃描包材</b><br><span style="color:var(--color-text-secondary)">已於 14:23 完成</span></div>
+        </div>
+        <div style="width:0.5px;height:16px;background:var(--color-border-tertiary);margin-left:14px"></div>
+        <div class="path-step">
+          <div class="step-circle current">2</div>
+          <div style="font-size:12px;flex:1"><b>步行至捷運忠孝復興站</b><br><span style="color:var(--amber)">距離 240 公尺 • 剩餘 3 分鐘</span></div>
+        </div>
+        <div style="width:0.5px;height:16px;background:var(--color-border-tertiary);margin-left:14px"></div>
+        <div class="path-step">
+          <div class="step-circle todo">3</div>
+          <div style="font-size:12px;flex:1;color:var(--color-text-secondary)"><b>掃描歸還 QR</b><br>抵達後掃碼完成</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bonus-box">
+      <div class="bonus-num">x10</div>
+      <p>最短路徑達成 → 積分 10 倍！</p>
+      <p style="font-size:11px;margin-top:4px;color:#BA7517">本次預計獲得 <b>250 積分</b> × 10 = <b>2,500 積分</b></p>
+    </div>
+
+    <div style="padding:0 12px;margin-bottom:4px">
+      <h3 style="font-size:13px;font-weight:500;color:var(--color-text-primary)">🐾 我的吉祥物</h3>
+    </div>
+    <div class="mascots">
+      <div class="mascot" onclick="showNotif('🌿 綠葉精靈：感謝你的環保行動！')">
+        <div class="mascot-avatar" style="background:#EAF3DE;border-color:#97C459">🌿</div>
+        <div class="mascot-name">綠葉精靈</div>
+      </div>
+      <div class="mascot" onclick="showNotif('🐢 環保小龜：你回收了 12 個包材！')">
+        <div class="mascot-avatar" style="background:#E1F5EE;border-color:#5DCAA5">🐢</div>
+        <div class="mascot-name">環保小龜</div>
+      </div>
+      <div class="mascot locked">
+        <div class="mascot-avatar" style="background:#EEEDFE">🦋</div>
+        <div class="mascot-name">蝴蝶仙子<br><span style="font-size:9px">再 500 積分解鎖</span></div>
+      </div>
+      <div class="mascot locked">
+        <div class="mascot-avatar" style="background:#FAEEDA">🌙</div>
+        <div class="mascot-name">月光獸<br><span style="font-size:9px">勳章達成解鎖</span></div>
+      </div>
+      <div class="mascot locked">
+        <div class="mascot-avatar" style="background:#FAECE7">🦄</div>
+        <div class="mascot-name">彩虹獨角獸<br><span style="font-size:9px">稀有吉祥物</span></div>
+      </div>
+    </div>
+
+    <div style="margin:0 12px 16px">
+      <div style="background:var(--purple-l);border-radius:var(--border-radius-lg);padding:12px;border:0.5px solid #CECBF6">
+        <div style="font-size:13px;font-weight:500;color:var(--purple);margin-bottom:6px">📊 本月進度</div>
+        <div class="detail-row"><span style="color:var(--color-text-secondary)">歸還次數</span><span class="detail-val">12 次</span></div>
+        <div class="detail-row"><span style="color:var(--color-text-secondary)">累積步行</span><span class="detail-val">38,240 步</span></div>
+        <div class="detail-row"><span style="color:var(--color-text-secondary)">獲得積分</span><span class="detail-val">2,480 積分</span></div>
+        <div class="detail-row"><span style="color:var(--color-text-secondary)">互助歸還</span><span class="detail-val">3 次（+750積分）</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BADGE PAGE -->
+  <div class="page" id="page-badge">
+    <div class="badge-header">
+      <h2>🏅 綠色勳章中心</h2>
+      <div class="month-selector">
+        <button class="month-btn">‹</button>
+        <span class="month-label">2025 年 4 月</span>
+        <button class="month-btn">›</button>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="val" style="color:var(--green)">12</div><div class="lbl">本月歸還次數</div></div>
+      <div class="stat-card"><div class="val" style="color:var(--blue)">38.2</div><div class="lbl">累積走路（公里）</div></div>
+      <div class="stat-card"><div class="val" style="color:var(--amber)">2,480</div><div class="lbl">積分</div></div>
+      <div class="stat-card"><div class="val" style="color:var(--teal)">4.2 kg</div><div class="lbl">省下碳排量</div></div>
+    </div>
+    <div class="carbon-viz">
+      <h3>🌱 碳排減少可視化</h3>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">相當於種了 0.4 棵樹 🌳</div>
+      <div class="carbon-bar-wrap">
+        <span style="font-size:11px;color:var(--color-text-secondary);min-width:50px">包材使用</span>
+        <div class="carbon-bar-bg">
+          <div class="carbon-bar-fill" style="width:75%;background:var(--green-m)"></div>
+        </div>
+        <span class="carbon-label">15 個</span>
+      </div>
+      <div class="carbon-bar-wrap">
+        <span style="font-size:11px;color:var(--color-text-secondary);min-width:50px">成功歸還</span>
+        <div class="carbon-bar-bg">
+          <div class="carbon-bar-fill" style="width:80%;background:var(--teal)"></div>
+        </div>
+        <span class="carbon-label">12 個</span>
+      </div>
+      <div class="carbon-bar-wrap">
+        <span style="font-size:11px;color:var(--color-text-secondary);min-width:50px">碳排減少</span>
+        <div class="carbon-bar-bg">
+          <div class="carbon-bar-fill" style="width:84%;background:var(--green)"></div>
+        </div>
+        <span class="carbon-label">4.2 kg</span>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--teal);background:rgba(15,110,86,.08);padding:8px 10px;border-radius:8px">
+        💡 等同於少開車行駛 <b>26 公里</b>，或節省 <b>1.7 度電</b>
+      </div>
+    </div>
+    <div class="badges-section">
+      <h3>獲得的綠色勳章</h3>
+      <div class="badges-grid">
+        <div class="badge-item earned" onclick="showNotif('🌿 環保新手：完成你的第一次歸還！')">
+          <div class="badge-emoji">🌿</div>
+          <div class="badge-name">環保新手</div>
+        </div>
+        <div class="badge-item earned" onclick="showNotif('👣 步行達人：本月走超過 30 公里！')">
+          <div class="badge-emoji">👣</div>
+          <div class="badge-name">步行達人</div>
+          <div class="new-badge">NEW</div>
+        </div>
+        <div class="badge-item earned" onclick="showNotif('⚡ 最短路徑王：3次達成最短路徑！')">
+          <div class="badge-emoji">⚡</div>
+          <div class="badge-name">路徑達人</div>
+        </div>
+        <div class="badge-item locked" onclick="showNotif('🔒 再回收 3 次可解鎖！')">
+          <div class="badge-emoji">🔄</div>
+          <div class="badge-name">回收英雄</div>
+        </div>
+        <div class="badge-item locked" onclick="showNotif('🔒 互助歸還 5 次可解鎖！')">
+          <div class="badge-emoji">🤝</div>
+          <div class="badge-name">互助大使</div>
+        </div>
+        <div class="badge-item locked" onclick="showNotif('🔒 累積 10,000 積分可解鎖！')">
+          <div class="badge-emoji">🏆</div>
+          <div class="badge-name">綠色冠軍</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOP PAGE -->
+  <div class="page" id="page-shop">
+    <div class="shop-header">
+      <h2>🛍️ 合作商店</h2>
+      <span style="font-size:12px;color:var(--green);font-weight:500">積分 2,480</span>
+    </div>
+    <div class="shop-filter">
+      <div class="filter-pill active">全部</div>
+      <div class="filter-pill" onclick="filterShop(this)">餐飲</div>
+      <div class="filter-pill" onclick="filterShop(this)">生活</div>
+      <div class="filter-pill" onclick="filterShop(this)">環保品牌</div>
+      <div class="filter-pill" onclick="filterShop(this)">配客嘉專屬</div>
+    </div>
+    <div class="shop-grid">
+      <div class="shop-card" onclick="showNotif('🛒 前往 Simple Green 購物頁面...')">
+        <div class="shop-img" style="background:var(--green-l)">🥗</div>
+        <div class="shop-info">
+          <div class="shop-name">Simple Green 沙拉</div>
+          <div class="shop-brand">健康餐飲</div>
+          <div class="shop-offer">🎁 歸還 1 次 → 9 折</div>
+          <div class="eco-tag">♻️ 無塑容器</div>
+        </div>
+      </div>
+      <div class="shop-card" onclick="showNotif('🛒 前往 Pinkoi 環保商品專區...')">
+        <div class="shop-img" style="background:var(--purple-l)">🎨</div>
+        <div class="shop-info">
+          <div class="shop-name">Pinkoi 設計選物</div>
+          <div class="shop-brand">設計電商</div>
+          <div class="shop-offer">🎁 積分 500 → 折抵 50</div>
+          <div class="eco-tag">🌿 永續設計</div>
+        </div>
+      </div>
+      <div class="shop-card" onclick="showNotif('🛒 前往鮮乳坊官網...')">
+        <div class="shop-img" style="background:var(--blue-l)">🥛</div>
+        <div class="shop-info">
+          <div class="shop-name">鮮乳坊</div>
+          <div class="shop-brand">食品</div>
+          <div class="shop-offer">🎁 步行 5km → 免運</div>
+          <div class="eco-tag">♻️ 回收瓶</div>
+        </div>
+      </div>
+      <div class="shop-card" onclick="showNotif('🛒 前往茶籽堂購物...')">
+        <div class="shop-img" style="background:var(--teal-l)">🌿</div>
+        <div class="shop-info">
+          <div class="shop-name">茶籽堂</div>
+          <div class="shop-brand">天然清潔</div>
+          <div class="shop-offer">🎁 勳章會員 85 折</div>
+          <div class="eco-tag">🌱 天然成分</div>
+        </div>
+      </div>
+      <div class="shop-card" onclick="showNotif('🛒 前往好日子購物...')">
+        <div class="shop-img" style="background:var(--amber-l)">☕</div>
+        <div class="shop-info">
+          <div class="shop-name">好日子 好好生活</div>
+          <div class="shop-brand">生活選物</div>
+          <div class="shop-offer">🎁 配客嘉會員獨家 8 折</div>
+          <div class="eco-tag">♻️ 友善包裝</div>
+        </div>
+      </div>
+      <div class="shop-card" onclick="showNotif('🛒 前往配客嘉專屬商城...')">
+        <div class="shop-img" style="background:var(--green-l)">📦</div>
+        <div class="shop-info">
+          <div class="shop-name">配客嘉周邊商品</div>
+          <div class="shop-brand">官方商城</div>
+          <div class="shop-offer">🎁 積分兌換吉祥物商品</div>
+          <div class="eco-tag">🌟 限定款</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QR MODAL -->
+<div id="qr-modal" class="modal-overlay" style="display:none" onclick="closeQR(event)">
+  <div class="modal">
+    <h3>📦 掃描包材 QR Code</h3>
+    <p id="qr-step-text">請掃描你手上的配客嘉包材</p>
+    <div class="qr-frame">
+      <div class="qr-corner tl"></div>
+      <div class="qr-corner tr"></div>
+      <div class="qr-corner bl"></div>
+      <div class="qr-corner br"></div>
+      <div class="scan-line"></div>
+      <span id="qr-icon">📦</span>
+    </div>
+    <div id="qr-info" style="display:none;background:var(--green-l);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;text-align:left">
+      <div style="font-weight:500;color:var(--green);margin-bottom:4px">✓ 包材識別成功！</div>
+      <div style="color:var(--color-text-secondary)">包材編號：PKY-2025-04-0892<br>使用次數：第 6 次<br>預計積分：250 點</div>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="closeQR()">取消</button>
+      <button class="modal-btn primary" id="qr-action" onclick="scanQR()">模擬掃描</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let qrStage = 0;
+let totalPts = 2480;
+let steps = 6284;
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    const tabs=['map','walk','badge','shop'];
+    el.classList.toggle('active', tabs[i]===t);
+  });
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+t).classList.add('active');
+  document.getElementById('station-popup').style.display='none';
+}
+
+function showStation(name, icon, x, y) {
+  const popup = document.getElementById('station-popup');
+  const descriptions = {
+    '捷運忠孝站': '今日已歸還：8 個\n獎勵：10x 積分加倍',
+    '全家便利超商': '營業時間：24小時\n獎勵：3x 積分',
+    '社區管理中心': '週一至六 09:00-18:00\n獎勵：2x 積分',
+    '全聯福利中心': '08:00-22:00\n獎勵：2x 積分'
+  };
+  const desc = descriptions[name] || '可歸還配客嘉包材';
+  const mapRect = document.getElementById('mapbox').getBoundingClientRect();
+  const relX = x / 390 * 100;
+  const relY = y / 260 * 100;
+  const left = relX > 60 ? 'auto' : x + 'px';
+  const right = relX > 60 ? (390 - x + 4) + 'px' : 'auto';
+  popup.style.left = left;
+  popup.style.right = right;
+  popup.style.top = (y + 16) + 'px';
+  popup.style.display = 'block';
+  popup.innerHTML = `<h4>${icon} ${name}</h4><p style="font-size:11px;color:var(--color-text-secondary);white-space:pre-line;margin-top:2px">${desc}</p>`;
+  setTimeout(()=>popup.style.display='none', 3000);
+}
+
+function findRoute() {
+  const path = document.getElementById('route-path');
+  path.setAttribute('d', 'M195,135 L195,90 L122,90');
+  path.style.opacity = '1';
+  showNotif('🧭 最短路徑已規劃！步行 240 公尺可獲 10x 獎勵');
+  setTimeout(()=>path.style.opacity='0', 5000);
+}
+
+function showQR() {
+  qrStage = 0;
+  document.getElementById('qr-modal').style.display = 'flex';
+  document.getElementById('qr-step-text').textContent = '請掃描你手上的配客嘉包材';
+  document.getElementById('qr-icon').textContent = '📦';
+  document.getElementById('qr-info').style.display = 'none';
+  document.getElementById('qr-action').textContent = '模擬掃描';
+}
+
+function scanQR() {
+  if(qrStage === 0) {
+    document.getElementById('qr-icon').textContent = '✓';
+    document.getElementById('qr-info').style.display = 'block';
+    document.getElementById('qr-step-text').textContent = '步行至最近站點後，再次掃碼完成歸還';
+    document.getElementById('qr-action').textContent = '到達站點，完成歸還';
+    qrStage = 1;
+  } else {
+    closeQR();
+    showBonusAnim();
+    totalPts += 2500;
+    document.getElementById('pts').textContent = totalPts.toLocaleString();
+  }
+}
+
+function closeQR(e) {
+  if(!e || e.target.id === 'qr-modal') {
+    document.getElementById('qr-modal').style.display = 'none';
+  }
+}
+
+function showBonusAnim() {
+  const el = document.createElement('div');
+  el.className = 'bonus-anim';
+  el.innerHTML = '<div class="bonus-anim-text">x10</div><div class="bonus-anim-sub">+2,500 積分！</div>';
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.remove(); showNotif('🎉 最短路徑達成！獲得 2,500 積分 + 步行達人徽章'); }, 900);
+}
+
+function addSteps() {
+  steps += Math.floor(Math.random()*500+200);
+  document.getElementById('step-display').textContent = steps.toLocaleString();
+  showNotif('👣 ' + steps.toLocaleString() + ' 步！繼續加油！');
+}
+
+function showNotif(msg) {
+  const old = document.querySelector('.notif');
+  if(old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'notif';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 3000);
+}
+
+function filterShop(el) {
+  document.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+}
+</script>
