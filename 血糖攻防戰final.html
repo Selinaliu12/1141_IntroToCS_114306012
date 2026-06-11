@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>血糖攻防戰</title>
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --card-bg: #ffffff;
+    --guardian-color: #3d8a5e;
+    --guardian-light: #e8f5ee;
+    --attacker-color: #c0392b;
+    --attacker-light: #fdecea;
+    --accent: #3b4fa8;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --border: #dde3ed;
+    --eye-color: #5b8fd9;
+    --kidney-color: #d95b8f;
+    --foot-color: #d9a05b;
+    --hp-bar-bg: #e0e0e0;
+    --shadow: 0 2px 12px rgba(0,0,0,0.09);
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* SCREENS */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ── TITLE SCREEN ── */
+  #screen-title {
+    background: linear-gradient(135deg, #1a1a2e 0%, #2d3561 60%, #3b4fa8 100%);
+    align-items: center; justify-content: center; text-align: center; padding: 2rem;
+  }
+  .title-medical-icons { font-size: 3rem; margin-bottom: 1rem; opacity: .7; }
+  .title-main { font-size: clamp(2.5rem, 8vw, 4.5rem); font-weight: 900; color: #fff;
+    letter-spacing: .05em; text-shadow: 0 2px 20px rgba(0,0,0,.4); }
+  .title-sub { font-size: 1.1rem; color: #a8b8e8; margin: .5rem 0 2.5rem; }
+  .title-btn { background: #fff; color: var(--accent); font-size: 1.2rem; font-weight: 700;
+    padding: .9rem 2.5rem; border: none; border-radius: 50px; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0,0,0,.3); transition: transform .15s, box-shadow .15s; margin: .4rem; }
+  .title-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,.4); }
+  .title-btn.secondary { background: transparent; color: #a8b8e8; border: 2px solid #a8b8e8; }
+
+  /* ── RULES SCREEN ── */
+  #screen-rules { background: var(--bg); padding: 1.5rem; }
+  .rules-title { font-size: 1.8rem; font-weight: 800; color: var(--accent); margin-bottom: 1.2rem; text-align: center; }
+  .rules-section { background: var(--card-bg); border-radius: var(--radius); padding: 1.2rem 1.5rem; margin-bottom: 1rem; box-shadow: var(--shadow); }
+  .rules-section h3 { font-size: 1rem; font-weight: 700; color: var(--accent); margin-bottom: .6rem; }
+  .rules-section ol, .rules-section ul { padding-left: 1.2rem; }
+  .rules-section li { margin-bottom: .4rem; font-size: .92rem; line-height: 1.55; }
+  .back-btn { display: block; width: fit-content; margin: 0 auto; padding: .7rem 2rem;
+    background: var(--accent); color: #fff; border: none; border-radius: 50px;
+    font-size: 1rem; font-weight: 600; cursor: pointer; }
+
+  /* ── SETUP SCREEN ── */
+  #screen-setup { background: var(--bg); padding: 1.5rem; align-items: center; }
+  .setup-title { font-size: 1.6rem; font-weight: 800; color: var(--accent); margin-bottom: 1.2rem; }
+  .setup-card { background: var(--card-bg); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); width: 100%; max-width: 520px; }
+  .setup-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; color: var(--text); }
+  .player-list { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1.2rem; }
+  .player-row { display: flex; align-items: center; gap: .8rem; padding: .6rem .8rem;
+    border-radius: 8px; background: var(--bg); font-size: .95rem; font-weight: 600; }
+  .player-row.guardian { background: var(--guardian-light); border-left: 4px solid var(--guardian-color); }
+  .player-row.attacker { background: var(--attacker-light); border-left: 4px solid var(--attacker-color); }
+  .role-badge { font-size: .75rem; font-weight: 700; padding: .2rem .6rem; border-radius: 20px; margin-left: auto; }
+  .guardian .role-badge { background: var(--guardian-color); color: #fff; }
+  .attacker .role-badge { background: var(--attacker-color); color: #fff; }
+  .skill-badge { font-size: .7rem; color: var(--muted); margin-left: .3rem; }
+  .setup-btns { display: flex; gap: .8rem; flex-wrap: wrap; justify-content: center; }
+  .setup-btn { padding: .7rem 1.6rem; border: none; border-radius: 50px; font-size: .95rem;
+    font-weight: 700; cursor: pointer; transition: opacity .15s; }
+  .setup-btn.primary { background: var(--accent); color: #fff; }
+  .setup-btn.outline { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
+
+  /* ── GAME SCREEN ── */
+  #screen-game { background: var(--bg); padding: 1rem; gap: .8rem; }
+
+  /* top bar */
+  .game-topbar { display: flex; align-items: center; justify-content: space-between;
+    background: var(--card-bg); border-radius: var(--radius); padding: .7rem 1.2rem;
+    box-shadow: var(--shadow); flex-wrap: wrap; gap: .5rem; }
+  .round-info { font-size: 1rem; font-weight: 700; color: var(--accent); }
+  .current-player-badge { font-size: .95rem; font-weight: 700; padding: .35rem .9rem;
+    border-radius: 20px; color: #fff; }
+  .current-player-badge.guardian { background: var(--guardian-color); }
+  .current-player-badge.attacker { background: var(--attacker-color); }
+
+  /* situation card */
+  .situation-bar { border-radius: var(--radius); padding: .8rem 1.2rem;
+    display: flex; align-items: center; gap: .8rem; font-size: .95rem; font-weight: 600; }
+  .situation-bar.tempt { background: #fff3e0; border-left: 5px solid #f59e0b; }
+  .situation-bar.prevent { background: var(--guardian-light); border-left: 5px solid var(--guardian-color); }
+  .situation-bar.stress { background: #fce4ec; border-left: 5px solid #e91e63; }
+  .situation-tag { font-size: .72rem; padding: .15rem .5rem; border-radius: 10px; color: #fff;
+    font-weight: 700; white-space: nowrap; }
+  .situation-bar.tempt .situation-tag { background: #f59e0b; }
+  .situation-bar.prevent .situation-tag { background: var(--guardian-color); }
+  .situation-bar.stress .situation-tag { background: #e91e63; }
+
+  /* organs */
+  .organs-row { display: flex; gap: .8rem; }
+  .organ-card { flex: 1; background: var(--card-bg); border-radius: var(--radius);
+    padding: .9rem; box-shadow: var(--shadow); text-align: center; cursor: pointer;
+    border: 3px solid transparent; transition: border-color .2s, transform .15s; position: relative; }
+  .organ-card:hover:not(.dead) { transform: translateY(-2px); }
+  .organ-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,79,168,.2); }
+  .organ-card.dead { opacity: .45; filter: grayscale(1); cursor: not-allowed; }
+  .organ-card.chain-warning { border-color: var(--attacker-color); animation: pulse-warn 1.5s infinite; }
+  @keyframes pulse-warn { 0%,100%{box-shadow:var(--shadow)} 50%{box-shadow:0 0 0 4px rgba(192,57,43,.3)} }
+  .organ-icon { font-size: 2rem; margin-bottom: .3rem; }
+  .organ-name { font-size: .85rem; font-weight: 700; margin-bottom: .5rem; }
+  .organ-tag { font-size: .65rem; font-weight: 700; padding: .15rem .5rem; border-radius: 10px;
+    color: #fff; display: inline-block; margin-bottom: .5rem; }
+  .eye-tag { background: var(--eye-color); }
+  .kidney-tag { background: var(--kidney-color); }
+  .foot-tag { background: var(--foot-color); }
+  .hp-bar-wrap { height: 8px; background: var(--hp-bar-bg); border-radius: 4px; overflow: hidden; margin: .3rem 0; }
+  .hp-bar { height: 100%; border-radius: 4px; transition: width .4s; }
+  .eye-bar { background: var(--eye-color); }
+  .kidney-bar { background: var(--kidney-color); }
+  .foot-bar { background: var(--foot-color); }
+  .hp-text { font-size: .8rem; font-weight: 700; }
+
+  /* game columns */
+  .game-cols { display: flex; gap: .8rem; flex: 1; }
+  .game-left { flex: 1; display: flex; flex-direction: column; gap: .8rem; }
+  .game-right { width: 240px; display: flex; flex-direction: column; gap: .8rem; }
+
+  /* action panel */
+  .action-panel { background: var(--card-bg); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+  .action-panel h4 { font-size: .85rem; font-weight: 700; color: var(--muted); margin-bottom: .7rem; text-transform: uppercase; letter-spacing: .05em; }
+  .action-btns { display: flex; flex-direction: column; gap: .5rem; }
+  .action-btn { padding: .65rem 1rem; border: none; border-radius: 8px; font-size: .9rem;
+    font-weight: 600; cursor: pointer; text-align: left; transition: opacity .15s, transform .1s; }
+  .action-btn:hover:not(:disabled) { opacity: .85; transform: translateX(2px); }
+  .action-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .action-btn.draw { background: #e8f0fe; color: #3b4fa8; }
+  .action-btn.play { background: #e6f4ea; color: #1e7e34; }
+  .action-btn.skill { background: #fff8e1; color: #b45309; }
+  .action-btn.endturn { background: #fce4ec; color: #ad1457; }
+
+  /* hand cards */
+  .hand-section { background: var(--card-bg); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); flex: 1; }
+  .hand-section h4 { font-size: .85rem; font-weight: 700; color: var(--muted); margin-bottom: .7rem; text-transform: uppercase; letter-spacing: .05em; }
+  .hand-cards { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .card-chip { padding: .4rem .8rem; border-radius: 8px; font-size: .82rem; font-weight: 600;
+    cursor: pointer; border: 2px solid transparent; transition: border-color .15s, transform .1s; }
+  .card-chip:hover { transform: translateY(-2px); }
+  .card-chip.selected-card { border-color: var(--accent); }
+  .card-chip.defense { background: var(--guardian-light); color: var(--guardian-color); }
+  .card-chip.attack { background: var(--attacker-light); color: var(--attacker-color); }
+  .card-chip.special { background: #fff8e1; color: #92400e; }
+
+  /* log */
+  .log-panel { background: var(--card-bg); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+  .log-panel h4 { font-size: .85rem; font-weight: 700; color: var(--muted); margin-bottom: .7rem; text-transform: uppercase; letter-spacing: .05em; }
+  .log-list { height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: .3rem; }
+  .log-item { font-size: .78rem; padding: .25rem .5rem; border-radius: 6px; line-height: 1.4; }
+  .log-item.info { background: #f0f4ff; color: var(--accent); }
+  .log-item.good { background: var(--guardian-light); color: var(--guardian-color); }
+  .log-item.bad { background: var(--attacker-light); color: var(--attacker-color); }
+  .log-item.warn { background: #fff3cd; color: #856404; }
+  .log-item.situation { background: #fff8e1; color: #92400e; font-weight: 600; }
+
+  /* player info sidebar */
+  .players-panel { background: var(--card-bg); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+  .players-panel h4 { font-size: .85rem; font-weight: 700; color: var(--muted); margin-bottom: .7rem; text-transform: uppercase; letter-spacing: .05em; }
+  .player-mini { display: flex; align-items: center; gap: .5rem; padding: .35rem .4rem;
+    border-radius: 6px; margin-bottom: .3rem; font-size: .82rem; font-weight: 600; }
+  .player-mini.active-player { background: #e8f0fe; }
+  .player-mini .mini-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .player-mini .guardian-dot { background: var(--guardian-color); }
+  .player-mini .attacker-dot { background: var(--attacker-color); }
+  .player-mini .card-count { margin-left: auto; font-size: .75rem; color: var(--muted);
+    background: var(--bg); padding: .1rem .4rem; border-radius: 10px; }
+
+  /* ── MODAL ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55);
+    display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+  .modal-overlay.hidden { display: none; }
+  .modal-box { background: var(--card-bg); border-radius: var(--radius); padding: 1.8rem;
+    max-width: 440px; width: 100%; box-shadow: 0 8px 40px rgba(0,0,0,.3); }
+  .modal-title { font-size: 1.3rem; font-weight: 800; margin-bottom: .8rem; color: var(--text); }
+  .modal-body { font-size: .95rem; line-height: 1.6; color: var(--muted); margin-bottom: 1.2rem; }
+  .modal-body strong { color: var(--text); }
+  .modal-btns { display: flex; gap: .7rem; flex-wrap: wrap; justify-content: flex-end; }
+  .modal-btn { padding: .6rem 1.4rem; border: none; border-radius: 50px;
+    font-size: .95rem; font-weight: 700; cursor: pointer; }
+  .modal-btn.confirm { background: var(--accent); color: #fff; }
+  .modal-btn.cancel { background: var(--bg); color: var(--text); }
+  .modal-btn.correct { background: var(--guardian-color); color: #fff; }
+  .modal-btn.wrong { background: var(--attacker-color); color: #fff; }
+
+  /* ── ENDGAME SCREEN ── */
+  #screen-end { align-items: center; justify-content: center; padding: 2rem; text-align: center; }
+  #screen-end.guardian-win { background: linear-gradient(135deg, #1a3a2a, #2d6a4f); }
+  #screen-end.attacker-win { background: linear-gradient(135deg, #3a1a1a, #6a2d2d); }
+  .end-icon { font-size: 5rem; margin-bottom: 1rem; }
+  .end-title { font-size: 2.5rem; font-weight: 900; color: #fff; margin-bottom: .5rem; }
+  .end-subtitle { font-size: 1.1rem; color: rgba(255,255,255,.75); margin-bottom: 2rem; }
+  .end-stats { display: flex; gap: 1rem; justify-content: center; margin-bottom: 2rem; flex-wrap: wrap; }
+  .end-stat { background: rgba(255,255,255,.15); border-radius: var(--radius); padding: .8rem 1.4rem; color: #fff; }
+  .end-stat .val { font-size: 1.8rem; font-weight: 800; }
+  .end-stat .lbl { font-size: .8rem; opacity: .8; }
+  .end-restart { background: #fff; color: var(--accent); font-size: 1.1rem; font-weight: 700;
+    padding: .8rem 2.2rem; border: none; border-radius: 50px; cursor: pointer; }
+
+  /* responsive */
+  @media (max-width: 680px) {
+    .game-cols { flex-direction: column; }
+    .game-right { width: 100%; }
+    .organs-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ TITLE ══════════════════ -->
+<div id="screen-title" class="screen active">
+  <div class="title-medical-icons">💊 🩺 💉</div>
+  <div class="title-main">血糖攻防戰</div>
+  <div class="title-sub">糖尿病衛教卡牌遊戲 · Blood Sugar Defense</div>
+  <button class="title-btn" onclick="showScreen('screen-setup'); initSetup()">開始遊戲</button>
+  <button class="title-btn secondary" onclick="showScreen('screen-rules')">查看規則</button>
+</div>
+
+<!-- ══════════════════ RULES ══════════════════ -->
+<div id="screen-rules" class="screen">
+  <div style="padding:1.5rem; max-width:640px; margin:0 auto; width:100%">
+  <div class="rules-title">🎯 遊戲規則</div>
+
+  <div class="rules-section">
+    <h3>基礎架構</h3>
+    <ul>
+      <li>玩家人數：共 7 人（守護者 4 人 vs. 攻擊者 3 人）</li>
+      <li>場上三大共同器官：👁️ 眼睛（HP 18）、🫘 腎臟（HP 20）、🦶 足部（HP 15）</li>
+      <li>手牌上限：每人 1～5 張功能牌，不可公開給其他玩家</li>
+    </ul>
+  </div>
+
+  <div class="rules-section">
+    <h3>每回合流程</h3>
+    <ol>
+      <li>抽取情境卡，每位玩家分配到 3 張功能牌</li>
+      <li>每位玩家抽取角色卡（守護者／攻擊者），特定角色額外獲得指定特殊技能卡</li>
+      <li>每回合玩家選擇：<strong>抽功能牌</strong> 或 <strong>出功能牌</strong>（攻擊或防禦，可自選器官）</li>
+      <li>疾病問答卡：守護者出攻擊型牌 / 攻擊者出防禦型牌時，可抽問答卡。答對→該牌無效化；答錯→功能牌照常作用</li>
+      <li>每輪結束抽一次情境卡</li>
+    </ol>
+  </div>
+
+  <div class="rules-section">
+    <h3>器官連鎖機制</h3>
+    <ul>
+      <li><strong>腎臟 HP &lt; 10</strong>：啟動連鎖併發症，所有器官每回合 HP 額外 -1</li>
+      <li>眼睛：模擬微血管病變，初期無感但極易受慢性高血糖破壞</li>
+      <li>足部：初始 HP 最低，末梢最常被忽略</li>
+    </ul>
+  </div>
+
+  <div class="rules-section">
+    <h3>勝利條件</h3>
+    <ul>
+      <li>三個器官皆被破壞（HP = 0）→ <strong>攻擊者勝</strong></li>
+      <li>第 12 輪結束，器官剩餘 HP 總和 &gt; 25 → <strong>守護者勝</strong></li>
+      <li>第 12 輪結束，器官剩餘 HP 總和 ≤ 25 → <strong>攻擊者勝</strong></li>
+    </ul>
+  </div>
+
+  <div class="rules-section">
+    <h3>功能牌一覽</h3>
+    <p style="font-size:.9rem;margin-bottom:.6rem;color:var(--muted)"><strong>防禦型（48張）</strong>：定期檢查 +2、養生飲食 +2、規律運動 +2、按時服藥 +2、壓力管理 +1、健康知識 +1、充足睡眠 +1</p>
+    <p style="font-size:.9rem;color:var(--muted)"><strong>攻擊型（24張）</strong>：喝酒 -2、抽菸 -2、高糖飲食 -2、暴飲暴食 -3、壓力大 -1、睡眠不足 -1</p>
+  </div>
+
+  <button class="back-btn" onclick="showScreen('screen-title')">← 返回</button>
+  </div>
+</div>
+
+<!-- ══════════════════ SETUP ══════════════════ -->
+<div id="screen-setup" class="screen">
+  <div style="padding:1.5rem; max-width:540px; margin:0 auto; width:100%">
+  <div class="setup-title">🎮 玩家角色分配</div>
+  <div class="setup-card">
+    <h3>7 位玩家隨機分配角色</h3>
+    <div class="player-list" id="player-list"></div>
+    <div class="setup-btns">
+      <button class="setup-btn outline" onclick="initSetup()">🔀 重新分配</button>
+      <button class="setup-btn primary" onclick="startGame()">⚔️ 開始戰鬥</button>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ══════════════════ GAME ══════════════════ -->
+<div id="screen-game" class="screen">
+
+  <!-- top bar -->
+  <div class="game-topbar">
+    <div class="round-info" id="round-info">第 1 回合</div>
+    <div id="current-player-badge" class="current-player-badge guardian">— 輪到 —</div>
+    <div id="hp-total-display" style="font-size:.85rem;color:var(--muted)">器官 HP 總和：53</div>
+    <button style="padding:.35rem .9rem;border:none;border-radius:20px;background:var(--bg);color:var(--muted);font-size:.8rem;cursor:pointer" onclick="showScreen('screen-title')">⬅ 離開</button>
+  </div>
+
+  <!-- situation -->
+  <div class="situation-bar tempt" id="situation-bar">
+    <span class="situation-tag">載入中</span>
+    <span id="situation-text">抽取情境卡中...</span>
+  </div>
+
+  <!-- organs -->
+  <div class="organs-row" id="organs-row">
+    <div class="organ-card" id="organ-eye" onclick="selectOrgan('eye')">
+      <div class="organ-icon">👁️</div>
+      <div class="organ-name">眼睛</div>
+      <div class="organ-tag eye-tag">微血管病變</div>
+      <div class="hp-bar-wrap"><div class="hp-bar eye-bar" id="eye-bar" style="width:100%"></div></div>
+      <div class="hp-text" id="eye-hp">18 / 18</div>
+    </div>
+    <div class="organ-card" id="organ-kidney" onclick="selectOrgan('kidney')">
+      <div class="organ-icon">🫘</div>
+      <div class="organ-name">腎臟</div>
+      <div class="organ-tag kidney-tag">連鎖觸發器</div>
+      <div class="hp-bar-wrap"><div class="hp-bar kidney-bar" id="kidney-bar" style="width:100%"></div></div>
+      <div class="hp-text" id="kidney-hp">20 / 20</div>
+    </div>
+    <div class="organ-card" id="organ-foot" onclick="selectOrgan('foot')">
+      <div class="organ-icon">🦶</div>
+      <div class="organ-name">足部</div>
+      <div class="organ-tag foot-tag">最脆弱器官</div>
+      <div class="hp-bar-wrap"><div class="hp-bar foot-bar" id="foot-bar" style="width:100%"></div></div>
+      <div class="hp-text" id="foot-hp">15 / 15</div>
+    </div>
+  </div>
+
+  <!-- main columns -->
+  <div class="game-cols">
+    <div class="game-left">
+
+      <!-- action panel -->
+      <div class="action-panel">
+        <h4>行動階段 — 選擇行動</h4>
+        <div class="action-btns">
+          <button class="action-btn draw" id="btn-draw" onclick="doDrawCard()">📥 抽取功能牌（手牌 +1）</button>
+          <button class="action-btn play" id="btn-play" onclick="openPlayModal()">🃏 出功能牌（需先選器官）</button>
+          <button class="action-btn skill" id="btn-skill" onclick="openSkillModal()">✨ 使用特殊技能卡</button>
+          <button class="action-btn endturn" id="btn-end" onclick="endTurn()">⏭ 結束回合</button>
+        </div>
+      </div>
+
+      <!-- hand -->
+      <div class="hand-section" id="hand-section">
+        <h4>手牌 <span id="hand-count-label" style="color:var(--muted);font-size:.8rem;font-weight:400"></span></h4>
+        <div class="hand-cards" id="hand-cards">
+          <span style="color:var(--muted);font-size:.85rem">尚無手牌</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="game-right">
+
+      <!-- players -->
+      <div class="players-panel">
+        <h4>玩家列表</h4>
+        <div id="players-mini-list"></div>
+      </div>
+
+      <!-- log -->
+      <div class="log-panel" style="flex:1">
+        <h4>戰鬥記錄</h4>
+        <div class="log-list" id="log-list"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ END ══════════════════ -->
+<div id="screen-end" class="screen">
+  <div class="end-icon" id="end-icon">🏆</div>
+  <div class="end-title" id="end-title">守護者勝利！</div>
+  <div class="end-subtitle" id="end-subtitle">器官健康守護成功</div>
+  <div class="end-stats" id="end-stats"></div>
+  <button class="end-restart" onclick="showScreen('screen-title')">🔄 再玩一次</button>
+</div>
+
+<!-- ══════════════════ MODAL ══════════════════ -->
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title">提示</div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-btns" id="modal-btns"></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+//  DATA
+// ════════════════════════════════════════════════════
+
+const ROLES = [
+  { name:'金牌營養師', side:'guardian', skill:'營養師的菜單', skillDesc:'抵銷一位攻擊者的攻擊。情境：百貨公司美食街可發動。' },
+  { name:'馬拉松教練', side:'guardian', skill:'全員跑起來', skillDesc:'全場器官 HP +2。情境：全民運動日可發動。' },
+  { name:'資深藥劑師', side:'guardian', skill:'補充錠劑', skillDesc:'答對問答卡時額外修復一器官 2 HP（限一次）。情境：截稿前夕可發動。' },
+  { name:'健康的路人', side:'guardian', skill:null, skillDesc:'無特殊技能，普通健康市民。' },
+  { name:'派對咖',     side:'attacker', skill:'徹夜狂歡', skillDesc:'強迫一位守護者棄一張防禦牌；無防禦牌則出攻擊牌。情境：跨年派對可發動。' },
+  { name:'連日加班族', side:'attacker', skill:'過勞衝擊', skillDesc:'此回合可連續行動兩次，加速器官破壞。情境：截稿前夕可發動。' },
+  { name:'外送重度者', side:'attacker', skill:'高鹽高油食物', skillDesc:'讓「養生飲食」功能牌變為無效牌。情境：外送平台免運可發動。' },
+];
+
+const SITUATIONS = [
+  { name:'百貨公司美食街', type:'tempt', desc:'炸雞、拉麵與手搖飲的香味包圍，維持飲食控制難上加難。', trigger:'金牌營養師可發動「營養師的菜單」' },
+  { name:'跨年派對',       type:'tempt', desc:'酒精與菸草社交常態化，熬夜破壞身體防線。',             trigger:'派對咖可發動「徹夜狂歡」' },
+  { name:'外送平台免運',   type:'tempt', desc:'便利的外送生活成了器官健康的隱形殺手。',               trigger:'外送重度者可出「高鹽高油食物」' },
+  { name:'診所健檢週',     type:'prevent',desc:'社區健檢讓隱藏的血糖風險與指標無所遁形。',           trigger:'資深藥劑師可將負面牌轉為正面效果' },
+  { name:'全民運動日',     type:'prevent',desc:'響應健走活動，提升代謝與卡路里燃燒動能。',           trigger:'馬拉松教練可發動「全員跑起來」全場 +2' },
+  { name:'專案截稿前夕',   type:'stress', desc:'久坐加班、心理壓力與含糖咖啡，身體進入疲勞警戒。',   trigger:'連日加班族可發動「過勞衝擊」；藥劑師可出「補充錠劑」' },
+];
+
+const DEFENSE_CARDS = [
+  { id:'定期檢查', hp:+2, count:6, desc:'早期發現指標異常，阻止併發症惡化。' },
+  { id:'養生飲食', hp:+2, count:8, desc:'均衡飲食穩定血糖，強化器官防護力。' },
+  { id:'規律運動', hp:+2, count:8, desc:'提升代謝、改善胰島素阻抗，保護各器官。' },
+  { id:'按時服藥', hp:+2, count:6, desc:'規律用藥維持血糖穩定，防止器官惡化。' },
+  { id:'壓力管理', hp:+1, count:6, desc:'舒緩壓力降低皮質醇，減少血糖波動。' },
+  { id:'健康知識', hp:+1, count:6, desc:'正確認識糖尿病，強化自我照護能力。' },
+  { id:'充足睡眠', hp:+1, count:8, desc:'充足睡眠修復細胞、調節荷爾蒙平衡。' },
+];
+const ATTACK_CARDS = [
+  { id:'喝酒',     hp:-2, count:4, desc:'酒精干擾肝糖釋放，造成血糖不穩定與器官傷害。' },
+  { id:'抽菸',     hp:-2, count:4, desc:'菸草傷害血管內皮，加速動脈硬化與器官損傷。' },
+  { id:'高糖飲食', hp:-2, count:4, desc:'長期高糖傷害微血管，加速眼睛與腎臟損傷。' },
+  { id:'暴飲暴食', hp:-3, count:4, desc:'血糖急速飆升，對全體器官造成最大單次傷害。' },
+  { id:'壓力大',   hp:-1, count:4, desc:'慢性壓力升高皮質醇，間接推高血糖值。' },
+  { id:'睡眠不足', hp:-1, count:4, desc:'睡眠剝奪影響胰島素敏感性，破壞代謝平衡。' },
+];
+
+const QA_CARDS = [
+  { q:'糖尿病患者足部受傷後，傷口可能因血循不良而難以癒合。', type:'truefalse', answer:true,  explain:'周邊血管與神經病變讓足部傷口癒合緩慢。' },
+  { q:'第二型糖尿病患者通常完全無法自行分泌胰島素。', type:'truefalse', answer:false, explain:'第二型患者仍可分泌胰島素，主因是胰島素阻抗。' },
+  { q:'規律運動有助於改善胰島素阻抗。', type:'truefalse', answer:true, explain:'運動可提升細胞對胰島素的敏感性。' },
+  { q:'糖尿病的常見警訊（三多一少）包含：吃多、喝多、尿多、體重減輕。', type:'truefalse', answer:true, explain:'這是典型高血糖症狀。' },
+  { q:'腎臟是糖尿病最早受損的器官，不會影響其他器官。', type:'truefalse', answer:false, explain:'腎功能惡化會引發全身性連鎖反應。' },
+  { q:'糖尿病視網膜病變的主要機制為何？', type:'choice',
+    choices:['A. 長期高血糖導致視網膜微血管受損與新生血管', 'B. 眼壓升高導致視神經萎縮', 'C. 自體免疫攻擊視網膜細胞', 'D. 水晶體老化加速'], answer:0,
+    explain:'長期高血糖損傷微血管，誘發新生血管形成，造成視網膜病變。' },
+  { q:'糖尿病腎病變的早期指標是？', type:'choice',
+    choices:['A. 尿蛋白增加（微量白蛋白尿）', 'B. 血壓降低', 'C. 肌酸酐大幅下降', 'D. 尿液顏色變深'], answer:0,
+    explain:'微量白蛋白尿是腎臟受損的最早期警訊。' },
+  { q:'下列哪項行為最有助於穩定血糖？', type:'choice',
+    choices:['A. 不吃早餐', 'B. 規律少量多餐並搭配運動', 'C. 只喝果汁補充維生素', 'D. 大量飲水後立刻運動'], answer:1,
+    explain:'規律飲食與運動是控糖的基礎。' },
+  { q:'按時服藥對糖尿病患者的重要性為何？', type:'open', answer:'維持血糖穩定、防止血糖大幅波動，避免器官長期高血糖傷害。' },
+  { q:'請說明壓力如何影響血糖控制。', type:'open', answer:'壓力引發皮質醇分泌上升，皮質醇會抑制胰島素作用並促進肝糖釋放，導致血糖升高。' },
+];
+
+// ════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════
+let G = {};
+
+function initState() {
+  G = {
+    round: 1,
+    maxRounds: 12,
+    turn: 0,        // index into G.playerOrder
+    playerOrder: [],// filled after setup
+    players: [],    // {name, side, skill, skillUsed, hand:[]}
+    organs: {
+      eye:    { hp:18, maxHp:18, dead:false },
+      kidney: { hp:20, maxHp:20, dead:false },
+      foot:   { hp:15, maxHp:15, dead:false },
+    },
+    situation: null,
+    situationUsed: {},
+    deck: [],
+    selectedOrgan: null,
+    selectedCardIdx: null,
+    chainActive: false,
+    actionDone: false,   // has the current player used draw or play this turn
+    gameOver: false,
+    logs: [],
+  };
+}
+
+// ════════════════════════════════════════════════════
+//  SETUP
+// ════════════════════════════════════════════════════
+function initSetup() {
+  const shuffled = [...ROLES].sort(() => Math.random() - .5);
+  const list = document.getElementById('player-list');
+  list.innerHTML = '';
+  shuffled.forEach((r, i) => {
+    const div = document.createElement('div');
+    div.className = `player-row ${r.side}`;
+    div.innerHTML = `<span>玩家 ${i+1}　<strong>${r.name}</strong></span>
+      <span class="skill-badge">${r.skill ? '✦ '+r.skill : '─'}</span>
+      <span class="role-badge">${r.side === 'guardian' ? '守護者' : '攻擊者'}</span>`;
+    list.appendChild(div);
+  });
+  window._setupRoles = shuffled;
+}
+
+function startGame() {
+  initState();
+  const roles = window._setupRoles;
+  G.players = roles.map((r, i) => ({
+    id: i,
+    name: `玩家${i+1} ${r.name}`,
+    shortName: r.name,
+    side: r.side,
+    skill: r.skill,
+    skillDesc: r.skillDesc,
+    skillUsed: false,
+    hand: [],
+  }));
+  G.playerOrder = [...Array(7).keys()];
+  buildDeck();
+  // deal 3 cards each
+  G.players.forEach(p => { for(let i=0;i<3;i++) dealCard(p); });
+  drawSituation();
+  showScreen('screen-game');
+  renderGame();
+  addLog('⚔️ 血糖攻防戰開始！守護者守護眼睛・腎臟・足部。', 'info');
+}
+
+function buildDeck() {
+  G.deck = [];
+  DEFENSE_CARDS.forEach(c => { for(let i=0;i<c.count;i++) G.deck.push({...c, type:'defense'}); });
+  ATTACK_CARDS.forEach(c => { for(let i=0;i<c.count;i++) G.deck.push({...c, type:'attack'}); });
+  shuffleDeck();
+}
+
+function shuffleDeck() { G.deck.sort(() => Math.random() - .5); }
+
+function dealCard(player) {
+  if(G.deck.length === 0) buildDeck();
+  if(player.hand.length >= 5) return;
+  player.hand.push(G.deck.pop());
+}
+
+function drawSituation() {
+  G.situation = SITUATIONS[Math.floor(Math.random() * SITUATIONS.length)];
+}
+
+// ════════════════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════════════════
+function renderGame() {
+  const p = currentPlayer();
+  // topbar
+  document.getElementById('round-info').textContent = `第 ${G.round} 回合`;
+  const badge = document.getElementById('current-player-badge');
+  badge.textContent = `輪到 ${p.shortName}（${p.side==='guardian'?'守護者':'攻擊者'}）`;
+  badge.className = `current-player-badge ${p.side}`;
+
+  // HP total
+  const total = hpTotal();
+  document.getElementById('hp-total-display').textContent = `器官 HP 總和：${total}`;
+
+  // situation
+  const sb = document.getElementById('situation-bar');
+  const s = G.situation;
+  sb.className = `situation-bar ${s.type}`;
+  sb.innerHTML = `<span class="situation-tag">${s.type==='tempt'?'誘惑情境':s.type==='prevent'?'預防情境':'壓力情境'}</span>
+    <strong>${s.name}</strong>：${s.desc} <em style="font-size:.8em;opacity:.7">${s.trigger}</em>`;
+
+  // organs
+  renderOrgan('eye', 'eye', 18);
+  renderOrgan('kidney', 'kidney', 20);
+  renderOrgan('foot', 'foot', 15);
+
+  // check chain
+  G.chainActive = G.organs.kidney.hp > 0 && G.organs.kidney.hp < 10;
+  document.getElementById('organ-kidney').classList.toggle('chain-warning', G.chainActive);
+
+  // action buttons – disable if action done
+  document.getElementById('btn-draw').disabled = G.actionDone;
+  document.getElementById('btn-play').disabled = G.actionDone;
+  document.getElementById('btn-skill').disabled = G.actionDone || p.skillUsed || !p.skill;
+  document.getElementById('btn-end').disabled = false;
+
+  // hand
+  renderHand();
+
+  // players mini
+  renderPlayersMini();
+
+  // log (keep latest)
+  renderLog();
+}
+
+function renderOrgan(key, prefix, maxHp) {
+  const o = G.organs[key];
+  const pct = Math.max(0, o.hp / maxHp * 100);
+  document.getElementById(`${prefix}-bar`).style.width = pct + '%';
+  document.getElementById(`${prefix}-hp`).textContent = `${Math.max(0, o.hp)} / ${maxHp}`;
+  const card = document.getElementById(`organ-${key === 'eye' ? 'eye' : key === 'kidney' ? 'kidney' : 'foot'}`);
+  card.classList.toggle('dead', o.dead || o.hp <= 0);
+  card.classList.toggle('selected', G.selectedOrgan === key);
+}
+
+function renderHand() {
+  const p = currentPlayer();
+  const container = document.getElementById('hand-cards');
+  const label = document.getElementById('hand-count-label');
+  label.textContent = `（${p.hand.length}/5 張）`;
+  if(p.hand.length === 0) { container.innerHTML = '<span style="color:var(--muted);font-size:.85rem">尚無手牌</span>'; return; }
+  container.innerHTML = '';
+  p.hand.forEach((c, i) => {
+    const chip = document.createElement('div');
+    chip.className = `card-chip ${c.type} ${G.selectedCardIdx === i ? 'selected-card' : ''}`;
+    chip.textContent = `${c.type==='defense'?'🛡':'⚔'} ${c.id}（${c.hp > 0 ? '+' : ''}${c.hp} HP）`;
+    chip.title = c.desc;
+    chip.onclick = () => { G.selectedCardIdx = i; renderGame(); };
+    container.appendChild(chip);
+  });
+}
+
+function renderPlayersMini() {
+  const p = currentPlayer();
+  const container = document.getElementById('players-mini-list');
+  container.innerHTML = '';
+  G.players.forEach(pl => {
+    const div = document.createElement('div');
+    div.className = `player-mini ${pl.id === p.id ? 'active-player' : ''}`;
+    div.innerHTML = `<span class="mini-dot ${pl.side}-dot"></span>
+      <span>${pl.shortName}</span>
+      <span class="card-count">${pl.hand.length}張</span>`;
+    container.appendChild(div);
+  });
+}
+
+function renderLog() {
+  const list = document.getElementById('log-list');
+  list.innerHTML = '';
+  [...G.logs].reverse().slice(0, 30).forEach(l => {
+    const div = document.createElement('div');
+    div.className = `log-item ${l.type}`;
+    div.textContent = l.msg;
+    list.appendChild(div);
+  });
+}
+
+function addLog(msg, type='info') {
+  G.logs.push({ msg, type });
+  renderLog();
+}
+
+// ════════════════════════════════════════════════════
+//  ACTIONS
+// ════════════════════════════════════════════════════
+function currentPlayer() { return G.players[G.playerOrder[G.turn % 7]]; }
+
+function doDrawCard() {
+  if(G.actionDone) return;
+  const p = currentPlayer();
+  if(p.hand.length >= 5) { showInfo('手牌已達上限', '手牌已有 5 張，無法再抽牌。'); return; }
+  dealCard(p);
+  G.actionDone = true;
+  addLog(`📥 ${p.shortName} 抽了一張功能牌（共 ${p.hand.length} 張）`, 'info');
+  renderGame();
+}
+
+function openPlayModal() {
+  if(G.actionDone) return;
+  if(G.selectedCardIdx === null || G.selectedCardIdx === undefined) {
+    showInfo('請先選擇手牌', '請點擊下方手牌中的一張，再按「出功能牌」。'); return;
+  }
+  if(G.selectedOrgan === null) {
+    showInfo('請先選擇器官', '請點擊要攻擊或守護的器官（眼睛、腎臟、足部），再按「出功能牌」。'); return;
+  }
+  const p = currentPlayer();
+  const card = p.hand[G.selectedCardIdx];
+  const organName = {eye:'眼睛', kidney:'腎臟', foot:'足部'}[G.selectedOrgan];
+  const organObj = G.organs[G.selectedOrgan];
+  if(organObj.dead || organObj.hp <= 0) { showInfo('器官已損毀', `${organName}已無法作用。`); return; }
+
+  // check if opposing card type (triggers QA)
+  const isOpposing = (p.side === 'guardian' && card.type === 'attack') ||
+                     (p.side === 'attacker' && card.type === 'defense');
+
+  // special: 外送重度者 makes 養生飲食 无效
+  if(G.situation.name === '外送平台免運' && p.side === 'attacker' &&
+     card.type === 'defense' && card.id === '養生飲食') {
+    showModal('⚠️ 高鹽高油食物',
+      `外送重度者情境下，「養生飲食」牌被無效化！該牌無效，棄牌。`,
+      [{ label:'確認', cls:'confirm', cb: () => {
+        p.hand.splice(G.selectedCardIdx, 1);
+        G.selectedCardIdx = null;
+        G.actionDone = true;
+        addLog(`🍔 外送情境：${p.shortName} 的「養生飲食」被無效化`, 'warn');
+        renderGame(); closeModal();
+      }}]);
+    return;
+  }
+
+  if(isOpposing) {
+    showModal('❓ 疾病問答卡觸發',
+      `<strong>${p.shortName}</strong> 出了一張<strong>反向牌</strong>（${card.id}），可抽取疾病問答卡！<br><br>
+      答對 → 此牌<strong>無效化</strong>；答錯 → 牌照常作用。<br><br>
+      是否抽取問答卡？`,
+      [
+        { label:'抽問答卡', cls:'confirm', cb: () => { closeModal(); triggerQA(card, G.selectedOrgan, organName); }},
+        { label:'放棄，直接打出', cls:'cancel', cb: () => { closeModal(); executeCard(card, G.selectedOrgan, organName, false); }}
+      ]);
+  } else {
+    showModal(`🃏 確認出牌`,
+      `<strong>${p.shortName}</strong> 要對 <strong>${organName}</strong> 出<br>「${card.id}」（${card.hp > 0 ? '+' : ''}${card.hp} HP）<br><br>${card.desc}`,
+      [
+        { label:'確認出牌', cls:'confirm', cb: () => { closeModal(); executeCard(card, G.selectedOrgan, organName, false); }},
+        { label:'取消', cls:'cancel', cb: closeModal }
+      ]);
+  }
+}
+
+function triggerQA(card, organKey, organName) {
+  const qa = QA_CARDS[Math.floor(Math.random() * QA_CARDS.length)];
+  let bodyHTML = `<strong>題目：</strong>${qa.q}<br><br>`;
+  let btns = [];
+
+  if(qa.type === 'truefalse') {
+    bodyHTML += '（是非題）';
+    btns = [
+      { label:'○ 正確', cls:'correct', cb: () => { closeModal(); resolveQA(true, qa, card, organKey, organName, qa.answer === true); }},
+      { label:'✕ 錯誤', cls:'wrong',   cb: () => { closeModal(); resolveQA(false, qa, card, organKey, organName, qa.answer === false); }},
+    ];
+  } else if(qa.type === 'choice') {
+    bodyHTML += qa.choices.map((c,i) => `<br>${c}`).join('');
+    btns = qa.choices.map((c, i) => ({
+      label: c.split('.')[0],
+      cls: 'confirm',
+      cb: () => { closeModal(); resolveQA(i === qa.answer, qa, card, organKey, organName, i === qa.answer); }
+    }));
+  } else {
+    // open question – just show answer and ask if correct
+    bodyHTML += `<br><br><em style="color:var(--muted)">參考答案：${qa.answer}</em>`;
+    btns = [
+      { label:'答對了', cls:'correct', cb: () => { closeModal(); resolveQA(true, qa, card, organKey, organName, true); }},
+      { label:'答錯了', cls:'wrong',   cb: () => { closeModal(); resolveQA(false, qa, card, organKey, organName, false); }},
+    ];
+  }
+  showModal('❓ 疾病問答卡', bodyHTML, btns);
+}
+
+function resolveQA(isCorrect, qa, card, organKey, organName, correct) {
+  const p = currentPlayer();
+  if(isCorrect) {
+    addLog(`✅ ${p.shortName} 答對問答卡！「${card.id}」牌無效化，${organName}免受影響。`, 'good');
+    showModal('✅ 答對！', `「${card.id}」牌被無效化！<br>${organName}保住了。<br><br><em>${qa.explain||''}</em>`,
+      [{ label:'繼續', cls:'confirm', cb: () => {
+        closeModal();
+        const p2 = currentPlayer();
+        p2.hand.splice(G.selectedCardIdx, 1);
+        G.selectedCardIdx = null;
+        G.actionDone = true;
+        // 藥劑師bonus
+        if(p2.side==='guardian' && p2.skill==='補充錠劑' && !p2.skillUsed && G.situation.name==='診所健檢週') {
+          healOrgan(organKey, 2);
+          p2.skillUsed = true;
+          addLog(`💊 資深藥劑師特技：額外修復 ${organName} 2 HP`, 'good');
+        }
+        renderGame();
+      }}]);
+  } else {
+    addLog(`❌ ${p.shortName} 答錯問答卡！「${card.id}」牌維持原效果。`, 'bad');
+    showModal('❌ 答錯！', `「${card.id}」牌照常發動！<br><br><em>${qa.explain||''}</em>`,
+      [{ label:'繼續', cls:'confirm', cb: () => { closeModal(); executeCard(card, organKey, organName, true); }}]);
+  }
+}
+
+function executeCard(card, organKey, organName, fromQA) {
+  const p = currentPlayer();
+  const organ = G.organs[organKey];
+  const oldHp = organ.hp;
+
+  // 派對咖 + 跨年派對：喝酒/抽菸 extra -4
+  let bonus = 0;
+  if(p.side==='attacker' && p.shortName.includes('派對咖') && G.situation.name==='跨年派對' &&
+     (card.id==='喝酒'||card.id==='抽菸')) bonus = -4;
+
+  // 連日加班族 + 截稿前夕：壓力大/睡眠不足 extra -2
+  if(p.side==='attacker' && p.shortName.includes('連日加班族') && G.situation.name==='專案截稿前夕' &&
+     (card.id==='壓力大'||card.id==='睡眠不足')) bonus = -2;
+
+  const delta = card.hp + bonus;
+  applyHpDelta(organKey, delta);
+
+  const changeStr = delta > 0 ? `+${delta}` : `${delta}`;
+  const logType = delta >= 0 ? 'good' : 'bad';
+  addLog(`${delta>=0?'🛡':'⚔'} ${p.shortName} → ${organName} 「${card.id}」${changeStr} HP（${oldHp} → ${Math.max(0, organ.hp)}）${bonus?'（特殊加成'+bonus+'）':''}`, logType);
+
+  p.hand.splice(G.selectedCardIdx, 1);
+  G.selectedCardIdx = null;
+  G.actionDone = true;
+
+  // check chain trigger
+  if(G.organs.kidney.hp < 10 && G.organs.kidney.hp > 0 && !G.chainActive) {
+    addLog('⚠️ 腎臟 HP 低於 10！啟動連鎖併發症：所有器官每回合額外 -1', 'warn');
+    G.chainActive = true;
+  }
+
+  checkGameOver();
+  renderGame();
+}
+
+function applyHpDelta(organKey, delta) {
+  const o = G.organs[organKey];
+  if(o.dead || o.hp <= 0) return;
+  o.hp = Math.max(0, Math.min(o.maxHp, o.hp + delta));
+  if(o.hp <= 0) { o.dead = true; addLog(`💀 ${{eye:'眼睛',kidney:'腎臟',foot:'足部'}[organKey]}已損毀！`, 'bad'); }
+}
+
+function healOrgan(organKey, amount) {
+  const o = G.organs[organKey];
+  if(o.dead) return;
+  o.hp = Math.min(o.maxHp, o.hp + amount);
+}
+
+function openSkillModal() {
+  if(G.actionDone) return;
+  const p = currentPlayer();
+  if(!p.skill || p.skillUsed) return;
+  showModal(`✨ 特殊技能：${p.skill}`,
+    `<strong>${p.skillDesc}</strong><br><br>確定使用技能嗎？（限用一次）`,
+    [
+      { label:'使用技能', cls:'confirm', cb: () => { closeModal(); activateSkill(p); }},
+      { label:'取消', cls:'cancel', cb: closeModal }
+    ]);
+}
+
+function activateSkill(p) {
+  p.skillUsed = true;
+  G.actionDone = true;
+  addLog(`✨ ${p.shortName} 使用特殊技能：${p.skill}`, 'warn');
+
+  if(p.skill === '全員跑起來') {
+    ['eye','kidney','foot'].forEach(k => healOrgan(k, 2));
+    addLog('🏃 全員跑起來！全場器官各 +2 HP', 'good');
+  } else if(p.skill === '徹夜狂歡') {
+    // force one guardian to discard a defense card
+    const guardians = G.players.filter(pl => pl.side === 'guardian');
+    const target = guardians.find(g => g.hand.some(c => c.type === 'defense'));
+    if(target) {
+      const idx = target.hand.findIndex(c => c.type === 'defense');
+      if(idx >= 0) { addLog(`🎉 徹夜狂歡：${target.shortName} 棄了一張防禦牌！`, 'bad'); target.hand.splice(idx, 1); }
+    } else {
+      // no defense card → target must play attack card (simulate)
+      addLog('🎉 徹夜狂歡：守護者無防禦牌，已強迫效果。', 'bad');
+    }
+  } else if(p.skill === '過勞衝擊') {
+    addLog('😫 過勞衝擊：本回合可連續行動兩次！', 'warn');
+    G.actionDone = false; // allow another action
+  } else if(p.skill === '補充錠劑') {
+    addLog('💊 補充錠劑已待機，答對問答卡時將額外修復器官 2 HP', 'good');
+  } else if(p.skill === '營養師的菜單') {
+    addLog('🍎 營養師的菜單：下一個攻擊者的攻擊被抵銷！', 'good');
+    G._menuShield = true;
+  }
+  renderGame();
+}
+
+function endTurn() {
+  const p = currentPlayer();
+  addLog(`⏭ ${p.shortName} 結束回合`, 'info');
+
+  G.actionDone = false;
+  G.selectedOrgan = null;
+  G.selectedCardIdx = null;
+
+  G.turn++;
+  const absoluteTurn = G.turn;
+  // new round after all 7 players
+  if(absoluteTurn % 7 === 0) {
+    G.round++;
+    addLog(`━━ 第 ${G.round} 輪開始 ━━`, 'situation');
+    drawSituation();
+    addLog(`📋 情境：${G.situation.name}`, 'situation');
+
+    // chain penalty
+    if(G.chainActive) {
+      ['eye','kidney','foot'].forEach(k => {
+        if(!G.organs[k].dead && G.organs[k].hp > 0) applyHpDelta(k, -1);
+      });
+      addLog('🔗 連鎖併發症：所有存活器官 -1 HP', 'bad');
+    }
+
+    // deal cards to all
+    G.players.forEach(pl => { if(pl.hand.length < 3) dealCard(pl); });
+  }
+
+  checkGameOver();
+  if(!G.gameOver) renderGame();
+}
+
+function checkGameOver() {
+  const allDead = ['eye','kidney','foot'].every(k => G.organs[k].dead || G.organs[k].hp <= 0);
+  if(allDead) { endGame('attacker', '三大器官全部損毀'); return; }
+  if(G.round > G.maxRounds) {
+    const total = hpTotal();
+    if(total > 25) endGame('guardian', `第 12 輪結束，HP 總和 ${total} > 25`);
+    else endGame('attacker', `第 12 輪結束，HP 總和 ${total} ≤ 25`);
+  }
+}
+
+function hpTotal() {
+  return ['eye','kidney','foot'].reduce((s,k) => s + Math.max(0, G.organs[k].hp), 0);
+}
+
+function endGame(winner, reason) {
+  G.gameOver = true;
+  const screen = document.getElementById('screen-end');
+  screen.className = `screen ${winner === 'guardian' ? 'guardian-win' : 'attacker-win'}`;
+  document.getElementById('end-icon').textContent = winner === 'guardian' ? '🏆' : '💀';
+  document.getElementById('end-title').textContent = winner === 'guardian' ? '守護者勝利！' : '攻擊者勝利！';
+  document.getElementById('end-subtitle').textContent = reason;
+  const total = hpTotal();
+  document.getElementById('end-stats').innerHTML = `
+    <div class="end-stat"><div class="val">${G.round}</div><div class="lbl">輪數</div></div>
+    <div class="end-stat"><div class="val">${total}</div><div class="lbl">器官 HP 總和</div></div>
+    <div class="end-stat"><div class="val">${G.organs.eye.hp}</div><div class="lbl">眼睛 HP</div></div>
+    <div class="end-stat"><div class="val">${G.organs.kidney.hp}</div><div class="lbl">腎臟 HP</div></div>
+    <div class="end-stat"><div class="val">${G.organs.foot.hp}</div><div class="lbl">足部 HP</div></div>
+  `;
+  showScreen('screen-end');
+}
+
+function selectOrgan(key) {
+  if(G.organs[key].dead || G.organs[key].hp <= 0) return;
+  G.selectedOrgan = G.selectedOrgan === key ? null : key;
+  renderGame();
+}
+
+// ════════════════════════════════════════════════════
+//  MODAL & SCREEN UTILITIES
+// ════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showModal(title, body, btns) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = body;
+  const btnContainer = document.getElementById('modal-btns');
+  btnContainer.innerHTML = '';
+  btns.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = `modal-btn ${b.cls}`;
+    btn.textContent = b.label;
+    btn.onclick = b.cb;
+    btnContainer.appendChild(btn);
+  });
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+
+function showInfo(title, body) {
+  showModal(title, body, [{ label:'了解', cls:'confirm', cb: closeModal }]);
+}
+
+// close modal on overlay click
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('modal-overlay')) closeModal();
+});
+</script>
+</body>
+</html>
