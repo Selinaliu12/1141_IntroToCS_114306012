@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍰 我的夢幻咖啡廳</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:linear-gradient(135deg,#FFF0F5 0%,#FFF5E0 100%);min-height:100vh;font-family:'Segoe UI',Arial,sans-serif;display:flex;align-items:center;justify-content:center}
+  #app{width:460px;background:white;border-radius:24px;padding:20px;box-shadow:0 8px 40px rgba(255,182,193,0.3)}
+  .hdr{text-align:center;margin-bottom:14px}
+  .hdr h1{font-size:24px;font-weight:800;color:#FF6B9D}
+  .hdr .sub{font-size:13px;color:#FFAACC;margin-top:2px}
+  .stats{display:flex;gap:10px;justify-content:center;margin-bottom:14px}
+  .stat{background:#FFF0F5;border-radius:12px;padding:8px 16px;text-align:center}
+  .stat .v{font-size:18px;font-weight:800;color:#FF6B9D}
+  .stat .l{font-size:11px;color:#FFAACC;margin-top:1px}
+  /* Order panel */
+  #order-panel{background:linear-gradient(135deg,#FFF0F5,#FFF8E0);border-radius:16px;padding:14px;margin-bottom:12px;border:2px dashed #FFD6E7;position:relative;min-height:80px}
+  #order-panel h3{font-size:14px;font-weight:700;color:#FF6B9D;margin-bottom:8px}
+  #order-display{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .order-item{background:white;border:2px solid #FFD6E7;border-radius:10px;padding:6px 12px;font-size:15px;display:flex;align-items:center;gap:4px}
+  #timer-ring{position:absolute;top:12px;right:14px;font-size:28px;font-weight:800;color:#FF6B9D}
+  /* Ingredient grid */
+  #ing-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+  .ing-btn{background:white;border:2px solid #FFE0F0;border-radius:14px;padding:8px 4px;text-align:center;cursor:pointer;transition:all 0.15s;user-select:none}
+  .ing-btn:hover{transform:scale(1.1);border-color:#FF6B9D;background:#FFF0F5}
+  .ing-btn:active{transform:scale(0.95)}
+  .ing-btn .emoji{font-size:26px;display:block}
+  .ing-btn .name{font-size:10px;color:#FFAACC;margin-top:2px;font-weight:600}
+  .ing-btn.selected{border-color:#FF6B9D;background:#FFF0F5;box-shadow:0 0 0 3px rgba(255,107,157,0.2)}
+  /* Tray */
+  #tray-label{font-size:13px;font-weight:700;color:#FF6B9D;margin-bottom:6px}
+  #tray{background:#FFF8F0;border-radius:14px;border:2px solid #FFE0D0;padding:10px;min-height:52px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .tray-item{background:white;border:1.5px solid #FFD6C0;border-radius:10px;padding:5px 10px;font-size:20px;cursor:pointer;transition:transform 0.12s}
+  .tray-item:hover{transform:scale(0.88);border-color:#FF6B35}
+  .tray-hint{font-size:12px;color:#FFD0C0;font-style:italic}
+  /* Customer */
+  #customer-area{display:flex;align-items:center;gap:12px;background:#FFF0F5;border-radius:14px;padding:10px 14px;margin-bottom:12px}
+  #customer-emoji{font-size:48px}
+  #customer-speech{background:white;border-radius:12px;border:2px solid #FFD6E7;padding:8px 12px;font-size:13px;color:#666;flex:1;position:relative}
+  #customer-speech::before{content:'';position:absolute;left:-12px;top:14px;border:6px solid transparent;border-right-color:#FFD6E7}
+  /* Buttons */
+  #action-row{display:flex;gap:8px;justify-content:center}
+  .btn{padding:10px 22px;border-radius:12px;font-size:14px;font-weight:700;border:2px solid;cursor:pointer;transition:all 0.12s}
+  .btn-serve{background:#FF6B9D;color:white;border-color:#E85A8A}
+  .btn-serve:hover{background:#E85A8A;transform:scale(1.04)}
+  .btn-clear{background:white;color:#FFAACC;border-color:#FFD6E7}
+  .btn-clear:hover{background:#FFF0F5;transform:scale(1.04)}
+  .btn-next{background:#A855F7;color:white;border-color:#9333EA}
+  .btn-next:hover{background:#9333EA;transform:scale(1.04)}
+  /* Feedback */
+  #feedback{text-align:center;font-size:20px;font-weight:800;height:28px;margin-top:8px}
+  /* Progress */
+  #prog-wrap{height:8px;background:#FFE0F0;border-radius:4px;margin-bottom:12px;overflow:hidden}
+  #prog{height:100%;background:linear-gradient(90deg,#FF6B9D,#FF9E6B);border-radius:4px;transition:width 0.4s}
+  /* Stars overlay */
+  #overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,182,193,0.92);z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+  #overlay.show{display:flex}
+  #overlay h2{font-size:36px;font-weight:900;color:#FF6B9D}
+  #overlay p{font-size:16px;color:#FF9E6B}
+  .star-row{font-size:40px;letter-spacing:4px}
+</style>
+</head>
+<body>
+<div id="overlay">
+  <div id="ov-emoji" style="font-size:64px">🎉</div>
+  <h2 id="ov-title"></h2>
+  <div class="star-row" id="ov-stars"></div>
+  <p id="ov-msg"></p>
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn btn-next" onclick="nextLevel()">繼續 ▶</button>
+    <button class="btn btn-clear" onclick="initGame()">重新開始</button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="hdr">
+    <h1>🍰 我的夢幻咖啡廳</h1>
+    <div class="sub">根據訂單準備料理，讓客人滿意！</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="v" id="s-score">0</div><div class="l">💰 金幣</div></div>
+    <div class="stat"><div class="v" id="s-level">1</div><div class="l">🍴 關卡</div></div>
+    <div class="stat"><div class="v" id="s-served">0/5</div><div class="l">✅ 完成</div></div>
+    <div class="stat"><div class="v" id="s-heart">❤️❤️❤️</div><div class="l">聲譽</div></div>
+  </div>
+  <div id="prog-wrap"><div id="prog" style="width:0%"></div></div>
+  <div id="customer-area">
+    <div id="customer-emoji">👦</div>
+    <div id="customer-speech">我想要...</div>
+  </div>
+  <div id="order-panel">
+    <h3>📋 訂單</h3>
+    <div id="order-display"></div>
+    <div id="timer-ring">⏰30</div>
+  </div>
+  <div id="tray-label">🍽️ 你的托盤（點選食材添加，點選托盤上的食材移除）</div>
+  <div id="tray"><div class="tray-hint">從下方選擇食材添加到托盤</div></div>
+  <div id="ing-grid"></div>
+  <div id="action-row">
+    <button class="btn btn-clear" onclick="clearTray()">🗑️ 清空</button>
+    <button class="btn btn-serve" onclick="serve()">🍽️ 上菜！</button>
+  </div>
+  <div id="feedback"></div>
+</div>
+
+<script>
+const INGREDIENTS=[
+  {e:'🍞',n:'麵包'},{e:'🥛',n:'牛奶'},{e:'☕',n:'咖啡'},{e:'🍓',n:'草莓'},
+  {e:'🫐',n:'藍莓'},{e:'🍫',n:'巧克力'},{e:'🧁',n:'蛋糕'},{e:'🥚',n:'雞蛋'},
+  {e:'🧀',n:'起司'},{e:'🍯',n:'蜂蜜'},{e:'🥐',n:'可頌'},{e:'🍵',n:'抹茶'},
+  {e:'🍦',n:'冰淇淋'},{e:'🍪',n:'餅乾'},{e:'🫖',n:'茶'},
+];
+const MENUS=[
+  {name:'草莓鬆餅',emoji:'🥞',recipe:['🍞','🥛','🍓'],price:30,customer:'👧',says:'我想要草莓鬆餅！'},
+  {name:'巧克力蛋糕',emoji:'🎂',recipe:['🧁','🍫','🥚'],price:40,customer:'👦',says:'來一份巧克力蛋糕！'},
+  {name:'拿鐵咖啡',emoji:'☕',recipe:['☕','🥛'],price:25,customer:'👩',says:'幫我做一杯拿鐵！'},
+  {name:'藍莓優格',emoji:'🫙',recipe:['🫐','🥛','🍯'],price:35,customer:'👴',says:'藍莓優格謝謝！'},
+  {name:'可頌早餐',emoji:'🥐',recipe:['🥐','🧀','🥚'],price:30,customer:'👨',says:'我要可頌早餐組合！'},
+  {name:'抹茶蛋糕',emoji:'🍵',recipe:['🍵','🧁','🍫'],price:45,customer:'🧑',says:'一個抹茶蛋糕！'},
+  {name:'草莓聖代',emoji:'🍨',recipe:['🍦','🍓','🫐'],price:38,customer:'👧',says:'草莓聖代大份的！'},
+  {name:'蜂蜜吐司',emoji:'🍯',recipe:['🍞','🧁','🍯'],price:28,customer:'👶',says:'蜂蜜吐司！謝謝！'},
+  {name:'下午茶組',emoji:'🫖',recipe:['🫖','🥐','🍪'],price:50,customer:'👵',says:'下午茶組合一份！'},
+  {name:'雙莓杯子蛋糕',emoji:'🧁',recipe:['🧁','🍓','🫐','🍯'],price:55,customer:'🧒',says:'雙莓杯子蛋糕！'},
+];
+let score=0,level=1,hearts=3,served=0,needed=5,tray=[],currentOrder=null,timerVal=30,timerInterval=null,frame=0;
+
+function initGame(){score=0;level=1;hearts=3;served=0;needed=5;tray=[];
+  document.getElementById('overlay').classList.remove('show');
+  buildIngGrid();nextOrder();updateUI();
+}
+function nextLevel(){level++;needed=5+level;served=0;tray=[];
+  document.getElementById('overlay').classList.remove('show');
+  nextOrder();updateUI();
+}
+function buildIngGrid(){
+  const g=document.getElementById('ing-grid');g.innerHTML='';
+  INGREDIENTS.forEach(i=>{
+    const d=document.createElement('div');d.className='ing-btn';
+    d.innerHTML=`<span class="emoji">${i.e}</span><span class="name">${i.n}</span>`;
+    d.addEventListener('click',()=>addToTray(i));
+    g.appendChild(d);
+  });
+}
+function nextOrder(){
+  clearInterval(timerInterval);
+  const pool=MENUS.slice(0,Math.min(5+level,MENUS.length));
+  currentOrder=pool[Math.floor(Math.random()*pool.length)];
+  tray=[];renderTray();renderOrder();
+  document.getElementById('customer-emoji').textContent=currentOrder.customer;
+  document.getElementById('customer-speech').textContent=currentOrder.says;
+  timerVal=Math.max(20,35-level*2);renderTimer();
+  timerInterval=setInterval(()=>{
+    timerVal--;renderTimer();
+    if(timerVal<=0){clearInterval(timerInterval);fail('⏰ 時間到了！客人跑掉了...');}
+  },1000);
+}
+function renderOrder(){
+  const d=document.getElementById('order-display');d.innerHTML='';
+  d.innerHTML=`<span style="font-size:20px">${currentOrder.emoji}</span>`;
+  currentOrder.recipe.forEach(e=>{
+    const s=document.createElement('div');s.className='order-item';
+    s.innerHTML=`<span>${e}</span>`;d.appendChild(s);
+  });
+  const pr=document.createElement('div');pr.className='order-item';
+  pr.innerHTML=`<span style="color:#FF6B9D;font-size:13px;font-weight:700">💰${currentOrder.price}</span>`;
+  d.appendChild(pr);
+}
+function renderTimer(){
+  const t=document.getElementById('timer-ring');
+  t.textContent='⏰'+timerVal;
+  t.style.color=timerVal<=10?'#FF4444':timerVal<=20?'#FF9E6B':'#FF6B9D';
+}
+function addToTray(ing){if(tray.length>=6)return;tray.push(ing.e);renderTray();}
+function clearTray(){tray=[];renderTray();}
+function renderTray(){
+  const t=document.getElementById('tray');t.innerHTML='';
+  if(!tray.length){t.innerHTML='<span class="tray-hint">從下方選擇食材添加到托盤</span>';return;}
+  tray.forEach((e,i)=>{
+    const d=document.createElement('div');d.className='tray-item';d.textContent=e;
+    d.title='點擊移除';d.addEventListener('click',()=>{tray.splice(i,1);renderTray();});
+    t.appendChild(d);
+  });
+}
+function serve(){
+  const recipe=[...currentOrder.recipe].sort();
+  const attempt=[...tray].sort();
+  if(JSON.stringify(recipe)===JSON.stringify(attempt)){
+    const timeBonus=Math.floor(timerVal*0.5);
+    const pts=currentOrder.price+timeBonus;score+=pts;served++;
+    updateUI();showFeedback('🎉 完美！+'+pts+'金幣！',true);
+    setTimeout(()=>{
+      if(served>=needed){showResult();}else{tray=[];nextOrder();}
+    },900);
+  } else {
+    hearts=Math.max(0,hearts-1);updateUI();
+    showFeedback('❌ 材料不對！少一條生命',false);
+    if(hearts<=0){clearInterval(timerInterval);setTimeout(()=>showGameOver(),800);}
+  }
+}
+function fail(msg){hearts=Math.max(0,hearts-1);updateUI();showFeedback(msg,false);
+  if(hearts<=0){setTimeout(()=>showGameOver(),800);return;}
+  setTimeout(()=>{tray=[];nextOrder();},1000);
+}
+function showFeedback(msg,good){
+  const f=document.getElementById('feedback');
+  f.textContent=msg;f.style.color=good?'#34A853':'#E24B4A';
+  setTimeout(()=>f.textContent='',1400);
+}
+function updateUI(){
+  document.getElementById('s-score').textContent=score;
+  document.getElementById('s-level').textContent=level;
+  document.getElementById('s-served').textContent=served+'/'+needed;
+  document.getElementById('s-heart').textContent='❤️'.repeat(hearts)+'🖤'.repeat(3-hearts);
+  document.getElementById('prog').style.width=(served/needed*100)+'%';
+}
+function showResult(){
+  clearInterval(timerInterval);
+  const stars=score>=needed*40?'⭐⭐⭐':score>=needed*25?'⭐⭐':'⭐';
+  document.getElementById('ov-emoji').textContent=stars.length===3?'🏆':'🎉';
+  document.getElementById('ov-title').textContent='關卡通過！';
+  document.getElementById('ov-stars').textContent=stars;
+  document.getElementById('ov-msg').textContent='第'+level+'關完成！金幣：'+score;
+  document.getElementById('overlay').classList.add('show');
+}
+function showGameOver(){
+  clearInterval(timerInterval);
+  document.getElementById('ov-emoji').textContent='😢';
+  document.getElementById('ov-title').textContent='咖啡廳倒閉了...';
+  document.getElementById('ov-stars').textContent='💔';
+  document.getElementById('ov-msg').textContent='別灰心！再試一次，金幣：'+score;
+  document.getElementById('overlay').classList.add('show');
+}
+initGame();
+</script>
+</body>
+</html>

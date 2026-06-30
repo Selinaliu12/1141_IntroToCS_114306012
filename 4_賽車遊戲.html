@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>極速賽車</title>
+<style>
+  :root{
+    --road:#3a3a42;
+    --grass1:#2e7d4f;
+    --grass2:#256b41;
+    --car:#ff3b5c;
+    --rival:#3b9eff;
+    --line:#ffd23f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:#0c0f14;
+    font-family:"Microsoft JhengHei","PingFang TC",sans-serif;
+    color:#fff;
+    display:flex;flex-direction:column;align-items:center;
+    overflow:hidden;
+    user-select:none;
+  }
+  h1{margin:10px 0 0;font-size:24px;letter-spacing:3px;text-shadow:0 0 10px #3b9effaa;}
+  .sub{font-size:12px;opacity:.7;margin-bottom:8px;}
+  #wrap{
+    position:relative;
+    width:340px;
+    height:560px;
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 10px 40px #000a;
+    border:3px solid #ffffff22;
+    background:var(--grass1);
+  }
+  #road{
+    position:absolute;
+    top:0;bottom:0;
+    left:30px;right:30px;
+    background:var(--road);
+  }
+  .road-edge{
+    position:absolute;
+    top:0;bottom:0;
+    width:8px;
+    background:repeating-linear-gradient(to bottom, #fff 0 20px, #c0392b 20px 40px);
+  }
+  .center-line{
+    position:absolute;
+    top:0;bottom:0;
+    left:50%;
+    width:6px;
+    margin-left:-3px;
+    background:repeating-linear-gradient(to bottom, var(--line) 0 26px, transparent 26px 52px);
+  }
+  .lane-mark{
+    position:absolute;
+    width:6px;
+    height:26px;
+    margin-left:-3px;
+    background:var(--line);
+    opacity:.0;
+  }
+  #player{
+    position:absolute;
+    width:36px;height:58px;
+    bottom:50px;
+    border-radius:10px 10px 6px 6px;
+    background:linear-gradient(var(--car), #a3263d);
+    box-shadow:0 6px 14px #0008;
+    transition:left .05s linear;
+  }
+  #player::before{
+    content:'';
+    position:absolute;
+    top:8px;left:6px;right:6px;height:14px;
+    background:#bfe3ff;
+    border-radius:4px;
+  }
+  .rival{
+    position:absolute;
+    width:36px;height:58px;
+    border-radius:10px 10px 6px 6px;
+    background:linear-gradient(var(--rival), #1b5fa3);
+    box-shadow:0 6px 14px #0008;
+  }
+  .rival::before{
+    content:'';
+    position:absolute;
+    top:36px;left:6px;right:6px;height:14px;
+    background:#bfe3ff;
+    border-radius:4px;
+  }
+  .cone{
+    position:absolute;
+    width:22px;height:26px;
+    background:linear-gradient(#ff9f1c, #c97400);
+    clip-path:polygon(50% 0%, 100% 100%, 0% 100%);
+  }
+  #hud{
+    position:absolute;
+    top:8px;left:0;right:0;
+    display:flex;
+    justify-content:space-between;
+    padding:0 14px;
+    font-size:14px;
+    font-weight:bold;
+    text-shadow:0 2px 4px #000;
+    z-index:3;
+  }
+  #speedbar{
+    position:absolute;
+    bottom:10px;left:14px;
+    width:80px;height:8px;
+    background:#ffffff22;
+    border-radius:4px;
+    overflow:hidden;
+    z-index:3;
+  }
+  #speedfill{
+    height:100%;width:0%;
+    background:var(--line);
+    transition:width .15s ease;
+  }
+  #overlay{
+    position:absolute;inset:0;
+    background:#000b;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;
+    gap:10px;
+    z-index:5;
+  }
+  #overlay h2{margin:0;font-size:22px;}
+  #overlay p{margin:0;font-size:13px;opacity:.8;}
+  button{
+    margin-top:6px;
+    background:var(--line);
+    color:#3a2a00;
+    border:none;
+    padding:10px 24px;
+    border-radius:30px;
+    font-weight:bold;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .controls{
+    display:flex;gap:10px;margin-top:14px;
+  }
+  .ctrl-btn{
+    width:64px;height:48px;
+    background:#ffffff18;
+    border:2px solid #ffffff33;
+    border-radius:12px;
+    color:#fff;
+    font-size:20px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  footer{margin-top:14px;font-size:11px;opacity:.5;}
+</style>
+</head>
+<body>
+<h1>🏎️ 極速賽車</h1>
+<div class="sub">← → 左右移動，↑ 加速 ↓ 減速，躲避對手車與三角錐！</div>
+<div id="wrap">
+  <div id="road">
+    <div class="road-edge" style="left:0"></div>
+    <div class="road-edge" style="right:0"></div>
+    <div class="center-line"></div>
+  </div>
+  <div id="hud">
+    <span>🏁 <span id="dist">0</span> m</span>
+    <span>⚡ <span id="speedTxt">0</span> km/h</span>
+  </div>
+  <div id="speedbar"><div id="speedfill"></div></div>
+  <div id="player"></div>
+  <div id="overlay">
+    <h2>🏁 極速賽車</h2>
+    <p>躲避其他車輛跑得越遠分數越高！</p>
+    <button onclick="startGame()">▶ 開始比賽</button>
+  </div>
+</div>
+<div class="controls">
+  <div class="ctrl-btn" id="leftBtn">⬅️</div>
+  <div class="ctrl-btn" id="upBtn">⬆️</div>
+  <div class="ctrl-btn" id="downBtn">⬇️</div>
+  <div class="ctrl-btn" id="rightBtn">➡️</div>
+</div>
+<footer>手機可用下方按鈕操作</footer>
+
+<script>
+const wrap = document.getElementById('wrap');
+const road = document.getElementById('road');
+const player = document.getElementById('player');
+const overlay = document.getElementById('overlay');
+const distEl = document.getElementById('dist');
+const speedTxt = document.getElementById('speedTxt');
+const speedfill = document.getElementById('speedfill');
+
+const ROAD_W = wrap.clientWidth ? wrap.clientWidth - 60 : 280; // will recalc after mount
+let roadLeft = 30, roadWidth = 280;
+
+let playerX = 0.5; // 0..1 across road
+let speed = 0;
+const MAX_SPEED = 12;
+let distance = 0;
+let running = false;
+let obstacles = [];
+let spawnTimer = 0;
+let rafId = null;
+let keys = {};
+
+function layout(){
+  roadWidth = road.clientWidth;
+  roadLeft = road.offsetLeft;
+}
+
+function carLeftPx(frac){
+  return roadLeft + frac*roadWidth - 18;
+}
+
+function startGame(){
+  overlay.style.display='none';
+  layout();
+  playerX = 0.5; speed = 0; distance = 0; spawnTimer=0;
+  obstacles.forEach(o=>o.el.remove()); obstacles=[];
+  distEl.textContent = 0; speedTxt.textContent = 0; speedfill.style.width='0%';
+  player.style.left = carLeftPx(playerX)+'px';
+  running = true;
+  rafId = requestAnimationFrame(loop);
+}
+
+function gameOver(){
+  running = false;
+  cancelAnimationFrame(rafId);
+  overlay.innerHTML = `<h2>💥 撞車了！</h2><p>跑了 ${Math.floor(distance)} m</p><button onclick="startGame()">🔄 再比一次</button>`;
+  overlay.style.display='flex';
+}
+
+function spawnObstacle(){
+  const type = Math.random() < 0.7 ? 'rival' : 'cone';
+  const lane = Math.random();
+  const el = document.createElement('div');
+  el.className = type==='rival' ? 'rival' : 'cone';
+  el.style.top = '-70px';
+  wrap.appendChild(el);
+  obstacles.push({el, lane, top:-70, type});
+}
+
+function loop(now){
+  if(!running) return;
+
+  if(keys['ArrowUp']) speed = Math.min(MAX_SPEED, speed+0.18);
+  else if(keys['ArrowDown']) speed = Math.max(0, speed-0.3);
+  else speed = Math.max(0, speed-0.04);
+
+  if(keys['ArrowLeft']) playerX = Math.max(0.04, playerX-0.018*(0.6+speed/MAX_SPEED));
+  if(keys['ArrowRight']) playerX = Math.min(0.96, playerX+0.018*(0.6+speed/MAX_SPEED));
+
+  player.style.left = carLeftPx(playerX)+'px';
+
+  distance += speed*0.12;
+  distEl.textContent = Math.floor(distance);
+  speedTxt.textContent = Math.floor(speed*22);
+  speedfill.style.width = (speed/MAX_SPEED*100)+'%';
+
+  spawnTimer++;
+  const interval = Math.max(28, 60 - speed*3);
+  if(spawnTimer > interval){
+    spawnTimer = 0;
+    spawnObstacle();
+  }
+
+  const moveSpeed = 2 + speed*1.4;
+  for(let i=obstacles.length-1;i>=0;i--){
+    const o = obstacles[i];
+    o.top += moveSpeed;
+    const leftPx = roadLeft + o.lane*roadWidth - (o.type==='rival'?18:11);
+    o.el.style.left = leftPx+'px';
+    o.el.style.top = o.top+'px';
+
+    // collision: player zone bottom 50..108
+    const oH = o.type==='rival'?58:26;
+    if(o.top+oH > 470 && o.top < 528){
+      const oCenter = o.lane;
+      if(Math.abs(oCenter - playerX) < 0.11){
+        gameOver();
+        return;
+      }
+    }
+
+    if(o.top > 580){
+      o.el.remove();
+      obstacles.splice(i,1);
+    }
+  }
+
+  rafId = requestAnimationFrame(loop);
+}
+
+document.addEventListener('keydown', e=>{
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){
+    e.preventDefault();
+    keys[e.key]=true;
+  }
+});
+document.addEventListener('keyup', e=>{
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) keys[e.key]=false;
+});
+
+function bind(id,key){
+  const btn = document.getElementById(id);
+  ['mousedown','touchstart'].forEach(ev=>btn.addEventListener(ev, e=>{e.preventDefault(); keys[key]=true;}));
+  ['mouseup','touchend','mouseleave'].forEach(ev=>btn.addEventListener(ev, ()=>keys[key]=false));
+}
+bind('leftBtn','ArrowLeft');
+bind('rightBtn','ArrowRight');
+bind('upBtn','ArrowUp');
+bind('downBtn','ArrowDown');
+
+window.addEventListener('resize', layout);
+layout();
+player.style.left = carLeftPx(playerX)+'px';
+</script>
+</body>
+</html>

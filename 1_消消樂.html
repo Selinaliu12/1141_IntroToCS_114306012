@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>糖果消消樂</title>
+<style>
+  :root{
+    --bg1:#3a1c5c;
+    --bg2:#190d2e;
+    --panel:#2a1547;
+    --accent:#ffd166;
+    --accent2:#ff6b9d;
+    --good:#5cff8f;
+    --text:#fdf6ff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:radial-gradient(circle at top, var(--bg1), var(--bg2));
+    font-family:"Microsoft JhengHei","PingFang TC",sans-serif;
+    color:var(--text);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+  }
+  h1{
+    margin:6px 0 2px;
+    font-size:28px;
+    letter-spacing:4px;
+    text-shadow:0 0 12px var(--accent2);
+  }
+  .sub{opacity:.7;font-size:13px;margin-bottom:14px;text-align:center;}
+  .hud{
+    display:flex;
+    gap:14px;
+    margin-bottom:14px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .stat{
+    background:var(--panel);
+    border:2px solid #ffffff22;
+    border-radius:14px;
+    padding:8px 18px;
+    text-align:center;
+    min-width:90px;
+    position:relative;
+  }
+  .stat b{display:block;font-size:20px;color:var(--accent);}
+  .stat span{font-size:11px;opacity:.7;}
+  .stat.timewarn b{color:#ff6b6b;}
+  #goalbar{
+    width:100%;
+    max-width:380px;
+    height:14px;
+    background:#ffffff15;
+    border-radius:10px;
+    overflow:hidden;
+    margin-bottom:12px;
+    border:1px solid #ffffff22;
+  }
+  #goalfill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg, var(--accent2), var(--accent));
+    transition:width .3s ease;
+  }
+  #board{
+    display:grid;
+    background:var(--panel);
+    border-radius:18px;
+    padding:8px;
+    box-shadow:0 10px 40px #00000066, inset 0 0 0 2px #ffffff15;
+    touch-action:none;
+  }
+  .cell{
+    width:42px;height:42px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:26px;
+    border-radius:10px;
+    cursor:pointer;
+    user-select:none;
+    transition:transform .12s ease, opacity .2s ease;
+    position:relative;
+  }
+  .cell.selected{
+    box-shadow:0 0 0 3px var(--accent) inset, 0 0 12px var(--accent);
+    transform:scale(1.08);
+  }
+  .cell.pop{
+    animation:pop .25s ease forwards;
+  }
+  @keyframes pop{
+    0%{transform:scale(1);opacity:1;}
+    100%{transform:scale(0.2) rotate(45deg);opacity:0;}
+  }
+  #msg{
+    margin-top:14px;
+    min-height:26px;
+    font-size:15px;
+    font-weight:bold;
+    color:var(--accent);
+    text-shadow:0 0 8px #0008;
+    text-align:center;
+  }
+  button{
+    margin-top:10px;
+    background:var(--accent2);
+    color:#2a0c1e;
+    border:none;
+    padding:10px 22px;
+    border-radius:30px;
+    font-weight:bold;
+    font-size:14px;
+    cursor:pointer;
+    box-shadow:0 4px 14px #ff6b9d55;
+  }
+  button:hover{filter:brightness(1.1);}
+  button.secondary{
+    background:#ffffff22;
+    color:#fff;
+  }
+  footer{margin-top:18px;font-size:11px;opacity:.4;}
+
+  #overlay{
+    position:fixed;inset:0;
+    background:#000000cc;
+    display:flex;align-items:center;justify-content:center;
+    z-index:10;
+  }
+  #overlay.hidden{display:none;}
+  .card{
+    background:var(--panel);
+    border-radius:20px;
+    padding:28px 32px;
+    text-align:center;
+    max-width:320px;
+    border:2px solid #ffffff22;
+    box-shadow:0 20px 60px #000a;
+  }
+  .card h2{margin:0 0 10px;font-size:24px;}
+  .card p{margin:4px 0;font-size:14px;opacity:.85;}
+  .card .big{font-size:36px;margin:10px 0;}
+</style>
+</head>
+<body>
+  <h1>🍬 糖果消消樂</h1>
+  <div class="sub">在時間結束前達成目標分數即可過關！連成三個以上糖果消除。</div>
+  <div class="hud">
+    <div class="stat"><b id="level">1</b><span>關卡</span></div>
+    <div class="stat"><b id="score">0</b><span>分數</span></div>
+    <div class="stat" id="timeStat"><b id="time">60</b><span>剩餘秒數</span></div>
+    <div class="stat"><b id="best">1</b><span>最高關卡</span></div>
+  </div>
+  <div id="goalbar"><div id="goalfill"></div></div>
+  <div id="board"></div>
+  <div id="msg"></div>
+  <button class="secondary" onclick="restart()">🔄 從第一關重新開始</button>
+  <footer>使用滑鼠／觸控點擊糖果進行交換</footer>
+
+  <div id="overlay" class="hidden">
+    <div class="card" id="card"></div>
+  </div>
+
+<script>
+const SIZE = 8;
+const CANDIES = ["🍓","🍋","🍇","🍏","🍑","🍪"];
+const board = document.getElementById('board');
+board.style.gridTemplateColumns = `repeat(${SIZE}, 42px)`;
+board.style.gridTemplateRows = `repeat(${SIZE}, 42px)`;
+board.style.gap = "4px";
+
+let grid = [];
+let score = 0;
+let level = 1;
+let bestLevel = Number(localStorage.getItem('candyBestLevel')||1);
+let selected = null;
+let busy = false;
+let timeLeft = 60;
+let timerId = null;
+let goalScore = 0;
+let gameActive = false;
+
+document.getElementById('best').textContent = bestLevel;
+
+function levelGoal(lv){ return 300 + (lv-1)*180; }
+function levelTime(lv){ return Math.max(35, 60 - (lv-1)*2); }
+
+function randCandy(){ return CANDIES[Math.floor(Math.random()*CANDIES.length)]; }
+
+function buildInitialGrid(){
+  let g;
+  do {
+    g = [];
+    for(let r=0;r<SIZE;r++){
+      g.push([]);
+      for(let c=0;c<SIZE;c++){
+        g[r].push(randCandy());
+      }
+    }
+  } while(findMatches(g).length > 0 || !hasPossibleMove(g));
+  return g;
+}
+
+function render(){
+  board.innerHTML = '';
+  for(let r=0;r<SIZE;r++){
+    for(let c=0;c<SIZE;c++){
+      const div = document.createElement('div');
+      div.className = 'cell';
+      div.textContent = grid[r][c] || '';
+      div.dataset.r = r;
+      div.dataset.c = c;
+      if(selected && selected.r===r && selected.c===c) div.classList.add('selected');
+      div.addEventListener('click', onCellClick);
+      board.appendChild(div);
+    }
+  }
+}
+
+function onCellClick(e){
+  if(busy || !gameActive) return;
+  const r = Number(e.currentTarget.dataset.r);
+  const c = Number(e.currentTarget.dataset.c);
+  if(!selected){
+    selected = {r,c};
+    render();
+    return;
+  }
+  const dr = Math.abs(selected.r - r);
+  const dc = Math.abs(selected.c - c);
+  if(selected.r===r && selected.c===c){
+    selected = null; render(); return;
+  }
+  if(dr+dc===1){
+    trySwap(selected.r, selected.c, r, c);
+  } else {
+    selected = {r,c};
+    render();
+  }
+}
+
+function trySwap(r1,c1,r2,c2){
+  swapCells(r1,c1,r2,c2);
+  const matches = findMatches(grid);
+  if(matches.length>0){
+    selected = null;
+    busy = true;
+    render();
+    setTimeout(()=>resolveMatches(), 150);
+  } else {
+    swapCells(r1,c1,r2,c2);
+    selected = null;
+    render();
+    showMsg("無法消除，換個位置吧！", "#ff8c8c");
+  }
+}
+
+function swapCells(r1,c1,r2,c2){
+  const tmp = grid[r1][c1];
+  grid[r1][c1] = grid[r2][c2];
+  grid[r2][c2] = tmp;
+}
+
+function findMatches(g){
+  const matched = new Set();
+  for(let r=0;r<SIZE;r++){
+    let run=[0];
+    for(let c=1;c<SIZE;c++){
+      if(g[r][c] && g[r][c]===g[r][c-1]) run.push(c);
+      else { if(run.length>=3) run.forEach(cc=>matched.add(r+','+cc)); run=[c]; }
+    }
+    if(run.length>=3) run.forEach(cc=>matched.add(r+','+cc));
+  }
+  for(let c=0;c<SIZE;c++){
+    let run=[0];
+    for(let r=1;r<SIZE;r++){
+      if(g[r][c] && g[r][c]===g[r-1][c]) run.push(r);
+      else { if(run.length>=3) run.forEach(rr=>matched.add(rr+','+c)); run=[r]; }
+    }
+    if(run.length>=3) run.forEach(rr=>matched.add(rr+','+c));
+  }
+  return Array.from(matched).map(s=>{ const [r,c]=s.split(',').map(Number); return {r,c}; });
+}
+
+function resolveMatches(){
+  const matches = findMatches(grid);
+  if(matches.length===0){
+    busy = false;
+    checkLevelClear();
+    if(!hasPossibleMove(grid) && gameActive){
+      showMsg("沒有可消除的組合了，重新整理盤面！");
+      grid = buildInitialGrid();
+      render();
+    }
+    return;
+  }
+  const cells = board.children;
+  matches.forEach(({r,c})=>{
+    const idx = r*SIZE+c;
+    cells[idx].classList.add('pop');
+  });
+  score += matches.length * 10;
+  document.getElementById('score').textContent = score;
+  updateGoalBar();
+  showMsg(`消除了 ${matches.length} 個！+${matches.length*10}分`, "#ffd166");
+
+  setTimeout(()=>{
+    matches.forEach(({r,c})=> grid[r][c] = null);
+    collapseGrid();
+    render();
+    setTimeout(()=>resolveMatches(), 200);
+  }, 220);
+}
+
+function collapseGrid(){
+  for(let c=0;c<SIZE;c++){
+    let stack=[];
+    for(let r=SIZE-1;r>=0;r--){
+      if(grid[r][c]!==null) stack.push(grid[r][c]);
+    }
+    for(let r=SIZE-1;r>=0;r--){
+      grid[r][c] = stack.length ? stack.shift() : randCandy();
+    }
+  }
+}
+
+function hasPossibleMove(g){
+  for(let r=0;r<SIZE;r++){
+    for(let c=0;c<SIZE;c++){
+      if(c<SIZE-1){
+        swap(g,r,c,r,c+1);
+        if(findMatches(g).length>0){ swap(g,r,c,r,c+1); return true; }
+        swap(g,r,c,r,c+1);
+      }
+      if(r<SIZE-1){
+        swap(g,r,c,r+1,c);
+        if(findMatches(g).length>0){ swap(g,r,c,r+1,c); return true; }
+        swap(g,r,c,r+1,c);
+      }
+    }
+  }
+  return false;
+  function swap(g,r1,c1,r2,c2){ const t=g[r1][c1]; g[r1][c1]=g[r2][c2]; g[r2][c2]=t; }
+}
+
+function showMsg(text,color){
+  const m = document.getElementById('msg');
+  m.textContent = text;
+  m.style.color = color || 'var(--accent)';
+}
+
+function updateGoalBar(){
+  const pct = Math.min(100, (score/goalScore)*100);
+  document.getElementById('goalfill').style.width = pct+'%';
+}
+
+function checkLevelClear(){
+  if(score >= goalScore && gameActive){
+    levelClear();
+  }
+}
+
+function startTimer(){
+  clearInterval(timerId);
+  timerId = setInterval(()=>{
+    if(!gameActive) return;
+    timeLeft--;
+    document.getElementById('time').textContent = timeLeft;
+    const timeStat = document.getElementById('timeStat');
+    if(timeLeft<=10) timeStat.classList.add('timewarn');
+    else timeStat.classList.remove('timewarn');
+    if(timeLeft<=0){
+      clearInterval(timerId);
+      timeUp();
+    }
+  }, 1000);
+}
+
+function levelClear(){
+  gameActive = false;
+  clearInterval(timerId);
+  if(level > bestLevel){
+    bestLevel = level;
+    localStorage.setItem('candyBestLevel', bestLevel);
+    document.getElementById('best').textContent = bestLevel;
+  }
+  showCard(`
+    <h2>🎉 過關成功！</h2>
+    <div class="big">⭐</div>
+    <p>第 ${level} 關完成，得分 ${score} / ${goalScore}</p>
+    <p>剩餘時間 ${timeLeft} 秒</p>
+    <button onclick="nextLevel()">▶ 下一關</button>
+  `);
+}
+
+function timeUp(){
+  gameActive = false;
+  showCard(`
+    <h2>⏰ 時間到！</h2>
+    <div class="big">😅</div>
+    <p>第 ${level} 關未完成</p>
+    <p>得分 ${score} / ${goalScore}</p>
+    <button onclick="retryLevel()">🔄 重試本關</button>
+    <button class="secondary" onclick="restart()">↩️ 回到第一關</button>
+  `);
+}
+
+function showCard(html){
+  document.getElementById('card').innerHTML = html;
+  document.getElementById('overlay').classList.remove('hidden');
+}
+function hideCard(){
+  document.getElementById('overlay').classList.add('hidden');
+}
+
+function setupLevel(){
+  goalScore = levelGoal(level);
+  timeLeft = levelTime(level);
+  score = 0;
+  selected = null;
+  busy = false;
+  document.getElementById('level').textContent = level;
+  document.getElementById('score').textContent = score;
+  document.getElementById('time').textContent = timeLeft;
+  document.getElementById('timeStat').classList.remove('timewarn');
+  updateGoalBar();
+  showMsg(`第 ${level} 關：${timeLeft} 秒內達成 ${goalScore} 分！`);
+  grid = buildInitialGrid();
+  render();
+  gameActive = true;
+  startTimer();
+}
+
+function nextLevel(){
+  level++;
+  hideCard();
+  setupLevel();
+}
+
+function retryLevel(){
+  hideCard();
+  setupLevel();
+}
+
+function restart(){
+  level = 1;
+  hideCard();
+  setupLevel();
+}
+
+restart();
+</script>
+</body>
+</html>

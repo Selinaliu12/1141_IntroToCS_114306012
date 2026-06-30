@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星際射擊</title>
+<style>
+  :root{
+    --bg1:#020111;
+    --bg2:#0a0a2a;
+    --ship:#5ee7ff;
+    --bullet:#fff36b;
+    --enemy:#ff4d6d;
+    --hp:#5cff8f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:radial-gradient(circle at 50% 0%, var(--bg2), var(--bg1));
+    font-family:"Microsoft JhengHei","PingFang TC",sans-serif;
+    color:#fff;
+    display:flex;flex-direction:column;align-items:center;
+    overflow:hidden;
+    user-select:none;
+  }
+  h1{margin:10px 0 0;font-size:24px;letter-spacing:3px;text-shadow:0 0 10px #5ee7ffaa;}
+  .sub{font-size:12px;opacity:.7;margin-bottom:8px;}
+  #wrap{
+    position:relative;
+    width:380px;
+    height:560px;
+    background:#000;
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 10px 40px #000a;
+    border:3px solid #5ee7ff33;
+  }
+  .star{
+    position:absolute;
+    background:#fff;
+    border-radius:50%;
+  }
+  #ship{
+    position:absolute;
+    width:38px;height:38px;
+    bottom:20px;
+    left:171px;
+    transition:left .04s linear;
+    filter:drop-shadow(0 0 6px var(--ship));
+  }
+  #ship svg{width:100%;height:100%;}
+  .bullet{
+    position:absolute;
+    width:4px;height:14px;
+    background:var(--bullet);
+    border-radius:2px;
+    box-shadow:0 0 6px var(--bullet);
+  }
+  .enemy{
+    position:absolute;
+    width:34px;height:34px;
+    border-radius:8px;
+    background:radial-gradient(circle at 35% 35%, #ff8fa3, var(--enemy));
+    box-shadow:0 0 10px #ff4d6daa;
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;
+  }
+  .boom{
+    position:absolute;
+    width:40px;height:40px;
+    border-radius:50%;
+    background:radial-gradient(circle, #fff, #ff9f4d, transparent);
+    animation:boom .3s ease forwards;
+    pointer-events:none;
+  }
+  @keyframes boom{
+    0%{transform:scale(0.3);opacity:1;}
+    100%{transform:scale(1.8);opacity:0;}
+  }
+  #hud{
+    position:absolute;
+    top:8px;left:0;right:0;
+    display:flex;
+    justify-content:space-between;
+    padding:0 14px;
+    font-size:14px;
+    font-weight:bold;
+    text-shadow:0 2px 4px #000;
+    z-index:3;
+  }
+  #hpbar{
+    position:absolute;
+    top:32px;left:14px;right:14px;
+    height:8px;
+    background:#ffffff22;
+    border-radius:4px;
+    overflow:hidden;
+    z-index:3;
+  }
+  #hpfill{
+    height:100%;
+    width:100%;
+    background:var(--hp);
+    transition:width .2s ease;
+  }
+  #overlay{
+    position:absolute;inset:0;
+    background:#000b;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;
+    gap:10px;
+    z-index:5;
+  }
+  #overlay h2{margin:0;font-size:22px;}
+  #overlay p{margin:0;font-size:13px;opacity:.8;}
+  button{
+    margin-top:6px;
+    background:var(--ship);
+    color:#022;
+    border:none;
+    padding:10px 24px;
+    border-radius:30px;
+    font-weight:bold;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .controls{
+    display:flex;gap:10px;margin-top:14px;
+  }
+  .ctrl-btn{
+    width:64px;height:48px;
+    background:#ffffff18;
+    border:2px solid #ffffff33;
+    border-radius:12px;
+    color:#fff;
+    font-size:20px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  footer{margin-top:14px;font-size:11px;opacity:.5;}
+</style>
+</head>
+<body>
+<h1>🚀 星際射擊</h1>
+<div class="sub">← → 移動，空白鍵 或 點擊畫面 發射子彈，擊落敵機！</div>
+<div id="wrap">
+  <div id="hud">
+    <span>💯 <span id="score">0</span></span>
+    <span>🌊 第 <span id="wave">1</span> 波</span>
+  </div>
+  <div id="hpbar"><div id="hpfill"></div></div>
+  <div id="ship">
+    <svg viewBox="0 0 100 100">
+      <polygon points="50,5 80,90 50,70 20,90" fill="#5ee7ff" stroke="#0bf" stroke-width="3"/>
+      <circle cx="50" cy="45" r="10" fill="#fff36b"/>
+    </svg>
+  </div>
+  <div id="overlay">
+    <h2>🛸 星際防衛戰</h2>
+    <p>消滅來襲的敵機，保護你的星艦！</p>
+    <button onclick="startGame()">▶ 開始遊戲</button>
+  </div>
+</div>
+<div class="controls">
+  <div class="ctrl-btn" id="leftBtn">⬅️</div>
+  <div class="ctrl-btn" id="fireBtn">🔥</div>
+  <div class="ctrl-btn" id="rightBtn">➡️</div>
+</div>
+<footer>手機可用下方按鈕操作，點擊畫面也能發射</footer>
+
+<script>
+const wrap = document.getElementById('wrap');
+const ship = document.getElementById('ship');
+const overlay = document.getElementById('overlay');
+const scoreEl = document.getElementById('score');
+const waveEl = document.getElementById('wave');
+const hpfill = document.getElementById('hpfill');
+
+const W = 380, H = 560;
+let shipX = 171;
+let hp = 100;
+let score = 0;
+let wave = 1;
+let running = false;
+let bullets = [];
+let enemies = [];
+let fireTimer = 0;
+let spawnTimer = 0;
+let spawnInterval = 70;
+let killsThisWave = 0;
+let killsNeeded = 6;
+let rafId = null;
+let keys = {};
+
+// stars background
+for(let i=0;i<50;i++){
+  const s = document.createElement('div');
+  s.className='star';
+  const size = Math.random()*2+1;
+  s.style.width = size+'px';
+  s.style.height = size+'px';
+  s.style.left = Math.random()*W+'px';
+  s.style.top = Math.random()*H+'px';
+  s.style.opacity = Math.random()*0.8+0.2;
+  wrap.insertBefore(s, wrap.firstChild);
+}
+
+function startGame(){
+  overlay.style.display='none';
+  shipX = 171; hp=100; score=0; wave=1; killsThisWave=0; killsNeeded=6; spawnInterval=70;
+  bullets.forEach(b=>b.el.remove()); bullets=[];
+  enemies.forEach(en=>en.el.remove()); enemies=[];
+  scoreEl.textContent=0; waveEl.textContent=1; hpfill.style.width='100%';
+  ship.style.left = shipX+'px';
+  running = true;
+  spawnTimer=0; fireTimer=0;
+  rafId = requestAnimationFrame(loop);
+}
+
+function gameOver(win){
+  running = false;
+  cancelAnimationFrame(rafId);
+  overlay.innerHTML = win
+    ? `<h2>🏆 防衛成功！</h2><p>最終分數 ${score}</p><button onclick="startGame()">🔄 再玩一次</button>`
+    : `<h2>💥 星艦被擊毀</h2><p>分數 ${score} ・ 撐到第 ${wave} 波</p><button onclick="startGame()">🔄 再玩一次</button>`;
+  overlay.style.display='flex';
+}
+
+function spawnEnemy(){
+  const x = Math.random()*(W-34);
+  const el = document.createElement('div');
+  el.className='enemy';
+  el.textContent = '👾';
+  el.style.left = x+'px';
+  el.style.top = '-40px';
+  wrap.appendChild(el);
+  enemies.push({el, x, y:-40, speed: 1.2 + wave*0.25 + Math.random()*0.6, hp:1});
+}
+
+function fireBullet(){
+  const el = document.createElement('div');
+  el.className='bullet';
+  el.style.left = (shipX+17)+'px';
+  el.style.bottom = '60px';
+  wrap.appendChild(el);
+  bullets.push({el, x:shipX+17, y:60});
+}
+
+function explosionAt(x,y){
+  const el = document.createElement('div');
+  el.className='boom';
+  el.style.left = (x-3)+'px';
+  el.style.top = (y-3)+'px';
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(), 320);
+}
+
+function loop(){
+  if(!running) return;
+
+  if(keys['ArrowLeft']) shipX = Math.max(0, shipX-5);
+  if(keys['ArrowRight']) shipX = Math.min(W-38, shipX+5);
+  ship.style.left = shipX+'px';
+
+  fireTimer++;
+  if(keys['fire'] && fireTimer>8){
+    fireTimer=0;
+    fireBullet();
+  }
+
+  spawnTimer++;
+  if(spawnTimer > spawnInterval){
+    spawnTimer = 0;
+    spawnEnemy();
+  }
+
+  // move bullets
+  for(let i=bullets.length-1;i>=0;i--){
+    const b = bullets[i];
+    b.y += 8;
+    b.el.style.bottom = b.y+'px';
+    if(b.y > H){ b.el.remove(); bullets.splice(i,1); }
+  }
+
+  // move enemies
+  for(let i=enemies.length-1;i>=0;i--){
+    const en = enemies[i];
+    en.y += en.speed;
+    en.el.style.top = en.y+'px';
+    if(en.y > H-60){
+      en.el.remove();
+      enemies.splice(i,1);
+      hp -= 12;
+      hpfill.style.width = Math.max(hp,0)+'%';
+      if(hp<=0){ gameOver(false); return; }
+      continue;
+    }
+  }
+
+  // bullet-enemy collision
+  for(let i=bullets.length-1;i>=0;i--){
+    const b = bullets[i];
+    const by = H - b.y;
+    for(let j=enemies.length-1;j>=0;j--){
+      const en = enemies[j];
+      if(Math.abs(b.x-(en.x+17)) < 22 && Math.abs(by-(en.y+17)) < 22){
+        explosionAt(en.x+17, en.y+17);
+        en.el.remove(); enemies.splice(j,1);
+        b.el.remove(); bullets.splice(i,1);
+        score += 10;
+        scoreEl.textContent = score;
+        killsThisWave++;
+        if(killsThisWave >= killsNeeded){
+          wave++;
+          if(wave>8){ gameOver(true); return; }
+          killsThisWave = 0;
+          killsNeeded += 3;
+          spawnInterval = Math.max(30, spawnInterval-6);
+          waveEl.textContent = wave;
+        }
+        break;
+      }
+    }
+  }
+
+  // ship-enemy collision
+  const shipTop = H-20-38;
+  for(let j=enemies.length-1;j>=0;j--){
+    const en = enemies[j];
+    if(Math.abs((en.x+17)-(shipX+19)) < 26 && Math.abs((en.y+17)-(shipTop+19)) < 26){
+      explosionAt(en.x+17, en.y+17);
+      en.el.remove(); enemies.splice(j,1);
+      hp -= 20;
+      hpfill.style.width = Math.max(hp,0)+'%';
+      if(hp<=0){ gameOver(false); return; }
+    }
+  }
+
+  rafId = requestAnimationFrame(loop);
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='ArrowLeft' || e.key==='ArrowRight') keys[e.key]=true;
+  if(e.key===' '){ e.preventDefault(); keys['fire']=true; }
+});
+document.addEventListener('keyup', e=>{
+  if(e.key==='ArrowLeft' || e.key==='ArrowRight') keys[e.key]=false;
+  if(e.key===' ') keys['fire']=false;
+});
+
+function btnDown(k){ keys[k]=true; }
+function btnUp(k){ keys[k]=false; }
+
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+const fireBtn = document.getElementById('fireBtn');
+
+['mousedown','touchstart'].forEach(ev=>{
+  leftBtn.addEventListener(ev, e=>{e.preventDefault(); btnDown('ArrowLeft');});
+  rightBtn.addEventListener(ev, e=>{e.preventDefault(); btnDown('ArrowRight');});
+  fireBtn.addEventListener(ev, e=>{e.preventDefault(); btnDown('fire');});
+});
+['mouseup','touchend','mouseleave'].forEach(ev=>{
+  leftBtn.addEventListener(ev, ()=>btnUp('ArrowLeft'));
+  rightBtn.addEventListener(ev, ()=>btnUp('ArrowRight'));
+  fireBtn.addEventListener(ev, ()=>btnUp('fire'));
+});
+
+wrap.addEventListener('click', ()=>{ if(running) fireBullet(); });
+
+ship.style.left = shipX+'px';
+</script>
+</body>
+</html>

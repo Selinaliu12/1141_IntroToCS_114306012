@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>地鐵跑酷</title>
+<style>
+  :root{
+    --sky1:#0b1d3a;
+    --sky2:#1c3d6b;
+    --track:#2e2e38;
+    --rail:#ffd23f;
+    --player:#ff5e5e;
+    --obstacle:#6b4226;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:linear-gradient(var(--sky1),var(--sky2));
+    font-family:"Microsoft JhengHei","PingFang TC",sans-serif;
+    color:#fff;
+    display:flex;flex-direction:column;align-items:center;
+    overflow:hidden;
+    user-select:none;
+  }
+  h1{margin:10px 0 0;font-size:24px;letter-spacing:3px;text-shadow:0 0 10px #ffd23f88;}
+  .sub{font-size:12px;opacity:.7;margin-bottom:8px;text-align:center;padding:0 12px;}
+  #wrap{
+    position:relative;
+    width:360px;
+    height:560px;
+    background:linear-gradient(var(--sky1) 0%, var(--sky2) 40%, var(--track) 40%);
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 10px 40px #000a;
+    border:3px solid #ffffff22;
+  }
+  #lanes{
+    position:absolute;
+    top:0;left:0;right:0;bottom:0;
+  }
+  .laneline{
+    position:absolute;
+    top:40%;bottom:0;
+    width:2px;
+    background:repeating-linear-gradient(to bottom, var(--rail) 0 14px, transparent 14px 28px);
+    opacity:.6;
+  }
+  #player{
+    position:absolute;
+    width:42px;height:54px;
+    bottom:30px;
+    border-radius:10px 10px 16px 16px;
+    background:linear-gradient(var(--player), #b33b3b);
+    box-shadow:0 6px 14px #0007;
+    transition:left .12s ease;
+    z-index:4;
+  }
+  #player::after{
+    content:'';
+    position:absolute;
+    top:8px;left:8px;right:8px;
+    height:14px;
+    background:#ffe;
+    border-radius:6px;
+    opacity:.8;
+  }
+  .obstacle{
+    position:absolute;
+    width:42px;height:42px;
+    border-radius:8px;
+    background:linear-gradient(var(--obstacle), #3e2614);
+    box-shadow:0 6px 14px #0007;
+  }
+  .obstacle.low{
+    /* ground obstacle: must jump over */
+    height:38px;
+  }
+  .obstacle.high{
+    /* overhead obstacle: must NOT jump, pass underneath */
+    height:26px;
+    background:linear-gradient(#5e9bd6, #2a5c8c);
+    border-radius:6px;
+  }
+  .coin{
+    position:absolute;
+    width:22px;height:22px;
+    border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #fff6c0, #ffd23f);
+    box-shadow:0 0 8px #ffd23faa;
+  }
+  #hud{
+    position:absolute;
+    top:10px;left:0;right:0;
+    display:flex;
+    justify-content:space-between;
+    padding:0 16px;
+    font-size:15px;
+    font-weight:bold;
+    text-shadow:0 2px 4px #000;
+    z-index:3;
+  }
+  #overlay{
+    position:absolute;inset:0;
+    background:#000a;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;
+    gap:10px;
+    z-index:5;
+    padding:0 20px;
+  }
+  #overlay h2{margin:0;font-size:22px;}
+  #overlay p{margin:0;font-size:13px;opacity:.8;}
+  button{
+    margin-top:6px;
+    background:var(--rail);
+    color:#3a2a00;
+    border:none;
+    padding:10px 24px;
+    border-radius:30px;
+    font-weight:bold;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .controls{
+    display:flex;gap:10px;margin-top:14px;
+  }
+  .ctrl-btn{
+    width:64px;height:48px;
+    background:#ffffff18;
+    border:2px solid #ffffff33;
+    border-radius:12px;
+    color:#fff;
+    font-size:20px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  footer{margin-top:14px;font-size:11px;opacity:.5;}
+</style>
+</head>
+<body>
+<h1>🏃 地鐵跑酷</h1>
+<div class="sub">← → 切換車道，↑ 或空白鍵跳躍（棕色障礙要跳，藍色橫桿要保持在地上鑽過）！每一排一定會留一條空車道，保證有路可走。</div>
+<div id="wrap">
+  <div id="lanes">
+    <div class="laneline" style="left:33%"></div>
+    <div class="laneline" style="left:66%"></div>
+  </div>
+  <div id="player"></div>
+  <div id="hud">
+    <span>💰 <span id="coins">0</span></span>
+    <span>🏆 <span id="distance">0</span> m</span>
+  </div>
+  <div id="overlay">
+    <h2>準備好了嗎？</h2>
+    <p>點擊開始，使用方向鍵躲避障礙物。每一排障礙物保證至少留一條安全車道！</p>
+    <button onclick="startGame()">▶ 開始遊戲</button>
+  </div>
+</div>
+<div class="controls">
+  <div class="ctrl-btn" id="leftBtn">⬅️</div>
+  <div class="ctrl-btn" id="jumpBtn">⬆️</div>
+  <div class="ctrl-btn" id="rightBtn">➡️</div>
+</div>
+<footer>手機可用下方按鈕操作</footer>
+
+<script>
+const wrap = document.getElementById('wrap');
+const player = document.getElementById('player');
+const overlay = document.getElementById('overlay');
+const coinsEl = document.getElementById('coins');
+const distEl = document.getElementById('distance');
+
+const LANES = [60, 159, 258]; // left px positions for lane (player width 42)
+const WRAP_H = 560;
+const PLAYER_W = 42, PLAYER_H = 54;
+const GROUND_BOTTOM = 30; // px from bottom where player stands
+
+let lane = 1;
+let jumping = false;
+let jumpT = 0;
+let running = false;
+let speed = 4;
+let distance = 0;
+let coins = 0;
+let spawnTimer = 0;
+let objects = []; // {el, lane, top, type:'low'|'high'|'coin', passed}
+let rafId = null;
+let lastTime = 0;
+
+function resetPlayerPos(){
+  player.style.left = LANES[lane]+'px';
+  player.style.bottom = GROUND_BOTTOM+'px';
+}
+
+function startGame(){
+  overlay.style.display = 'none';
+  lane = 1; jumping=false; jumpT=0; speed=4; distance=0; coins=0; spawnTimer=0;
+  objects.forEach(o=>o.el.remove());
+  objects = [];
+  coinsEl.textContent = 0;
+  distEl.textContent = 0;
+  resetPlayerPos();
+  running = true;
+  lastTime = performance.now();
+  rafId = requestAnimationFrame(loop);
+}
+
+function gameOver(){
+  running = false;
+  cancelAnimationFrame(rafId);
+  overlay.innerHTML = `<h2>💥 撞到了！</h2><p>距離 ${Math.floor(distance)} m ・ 金幣 ${coins}</p><button onclick="startGame()">🔄 再玩一次</button>`;
+  overlay.style.display = 'flex';
+}
+
+// Spawns one "row" of objects across up to 3 lanes, guaranteeing at least
+// one lane stays completely empty (a safe path) so the player can always
+// find a way through, regardless of obstacle type.
+function spawnRow(){
+  const laneCount = 3;
+  const safeLane = Math.floor(Math.random()*laneCount);
+
+  // decide how many of the remaining lanes get obstacles (0,1, or 2)
+  const otherLanes = [0,1,2].filter(l=>l!==safeLane);
+  // shuffle
+  for(let i=otherLanes.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [otherLanes[i],otherLanes[j]] = [otherLanes[j],otherLanes[i]];
+  }
+  const numObstacleLanes = Math.random() < 0.5 ? 1 : 2;
+  const chosenLanes = otherLanes.slice(0, numObstacleLanes);
+
+  chosenLanes.forEach(l=>{
+    const roll = Math.random();
+    let type;
+    if(roll < 0.45) type = 'low';       // must jump
+    else if(roll < 0.75) type = 'high'; // must NOT jump (duck under)
+    else type = 'coin';
+    spawnObject(l, type);
+  });
+
+  // sometimes also drop a coin in the safe lane as a reward, never an obstacle
+  if(Math.random() < 0.5){
+    spawnObject(safeLane, 'coin');
+  }
+}
+
+function spawnObject(l, type){
+  const el = document.createElement('div');
+  if(type==='coin'){
+    el.className = 'coin';
+    el.style.left = (LANES[l]+10)+'px';
+  } else {
+    el.className = 'obstacle ' + type;
+    el.style.left = LANES[l]+'px';
+  }
+  el.style.top = '-50px';
+  wrap.appendChild(el);
+  objects.push({el, lane:l, top:-50, type, passed:false});
+}
+
+function loop(now){
+  if(!running) return;
+  const dt = Math.min((now-lastTime)/16.6, 2.2);
+  lastTime = now;
+
+  distance += speed*dt*0.05;
+  distEl.textContent = Math.floor(distance);
+  speed = 4 + distance*0.02;
+  if(speed>11) speed=11;
+
+  spawnTimer += dt;
+  const spawnGap = Math.max(34 - speed*1.6, 20);
+  if(spawnTimer > spawnGap){
+    spawnTimer = 0;
+    spawnRow();
+  }
+
+  // jump physics: jumpHeight 0..1 progress mapped via sine curve
+  let jumpHeight = 0;
+  if(jumping){
+    jumpT += dt*0.07;
+    jumpHeight = Math.sin(Math.min(jumpT,1)*Math.PI) * 95;
+    player.style.bottom = (GROUND_BOTTOM+jumpHeight)+'px';
+    if(jumpT>=1){ jumping=false; jumpT=0; jumpHeight=0; player.style.bottom=GROUND_BOTTOM+'px'; }
+  }
+
+  // player's vertical box in "top" coordinates (distance from top of wrap)
+  const playerBottom = GROUND_BOTTOM + jumpHeight;
+  const playerTop = WRAP_H - playerBottom - PLAYER_H;
+  const playerBoxTop = playerTop;
+  const playerBoxBottom = playerTop + PLAYER_H;
+
+  for(let i=objects.length-1;i>=0;i--){
+    const o = objects[i];
+    o.top += speed*dt;
+    o.el.style.top = o.top+'px';
+
+    if(o.lane===lane){
+      const objH = o.type==='coin' ? 22 : (o.type==='high' ? 26 : 38);
+      const objBoxTop = o.top;
+      const objBoxBottom = o.top + objH;
+
+      // vertical overlap test
+      const overlap = objBoxTop < playerBoxBottom && objBoxBottom > playerBoxTop;
+
+      if(overlap){
+        if(o.type==='coin' && !o.passed){
+          o.passed = true;
+          coins++;
+          coinsEl.textContent = coins;
+          o.el.style.opacity = '0';
+        } else if(o.type==='low'){
+          // must be jumping high enough to clear it
+          if(jumpHeight < 55){
+            gameOver();
+            return;
+          }
+        } else if(o.type==='high'){
+          // must stay low (not jumping) to duck under it
+          if(jumpHeight > 25){
+            gameOver();
+            return;
+          }
+        }
+      }
+    }
+
+    if(o.top > WRAP_H+50){
+      o.el.remove();
+      objects.splice(i,1);
+    }
+  }
+
+  rafId = requestAnimationFrame(loop);
+}
+
+function moveLeft(){ if(lane>0){ lane--; resetLanePos(); } }
+function moveRight(){ if(lane<2){ lane++; resetLanePos(); } }
+function resetLanePos(){ player.style.left = LANES[lane]+'px'; }
+function doJump(){ if(!jumping){ jumping=true; jumpT=0; } }
+
+document.addEventListener('keydown', e=>{
+  if(!running) return;
+  if(e.key==='ArrowLeft') moveLeft();
+  else if(e.key==='ArrowRight') moveRight();
+  else if(e.key==='ArrowUp' || e.key===' ') { e.preventDefault(); doJump(); }
+});
+
+document.getElementById('leftBtn').addEventListener('click', moveLeft);
+document.getElementById('rightBtn').addEventListener('click', moveRight);
+document.getElementById('jumpBtn').addEventListener('click', doJump);
+
+let touchStartX=null, touchStartY=null;
+wrap.addEventListener('touchstart', e=>{
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+});
+wrap.addEventListener('touchend', e=>{
+  if(touchStartX===null) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if(Math.abs(dx) > Math.abs(dy)){
+    if(dx>30) moveRight();
+    else if(dx<-30) moveLeft();
+  } else {
+    if(dy<-30) doJump();
+  }
+  touchStartX=null;
+});
+
+resetPlayerPos();
+</script>
+</body>
+</html>
