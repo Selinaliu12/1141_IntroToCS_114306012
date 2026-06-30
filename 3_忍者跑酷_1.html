@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏃 忍者跑酷</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0d0d1a;font-family:'Segoe UI',Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden}
+  #wrap{width:480px;position:relative}
+  #hdr{display:flex;justify-content:space-between;align-items:center;padding:0 4px;margin-bottom:8px}
+  #hdr h1{font-size:22px;font-weight:800;color:#00FFAA;text-shadow:0 0 15px rgba(0,255,170,0.5)}
+  .stat-pill{background:rgba(255,255,255,0.08);border-radius:20px;padding:5px 14px;color:white;font-size:14px;font-weight:700}
+  .stat-pill span{color:#FFD700}
+  canvas{display:block;border-radius:16px;border:2px solid rgba(0,255,170,0.2)}
+  #btns{display:flex;gap:8px;justify-content:center;margin-top:10px}
+  .btn{padding:10px 28px;border-radius:10px;font-size:15px;font-weight:700;border:2px solid rgba(0,255,170,0.3);background:rgba(0,255,170,0.1);color:#00FFAA;cursor:pointer;transition:all 0.12s}
+  .btn:hover{background:rgba(0,255,170,0.2);transform:scale(1.04)}
+  #controls{text-align:center;color:rgba(255,255,255,0.4);font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hdr">
+    <h1>🥷 忍者跑酷</h1>
+    <div style="display:flex;gap:8px">
+      <div class="stat-pill">分數 <span id="s-score">0</span></div>
+      <div class="stat-pill">最高 <span id="s-best">0</span></div>
+    </div>
+  </div>
+  <canvas id="c" width="480" height="300"></canvas>
+  <div id="btns">
+    <button class="btn" onclick="startGame()">▶ 開始</button>
+    <button class="btn" onclick="togglePause()">⏸ 暫停</button>
+  </div>
+  <div id="controls">空白鍵 / 點擊 = 跳躍 &nbsp;|&nbsp; ↓ = 滑行</div>
+</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=480,H=300,GROUND=220;
+let state='idle',raf,score,best=0,speed,ninja,obstacles,coins,particles,frame,paused=false;
+let keys={};
+
+// 相容所有瀏覽器的圓角矩形
+function rrect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+
+function startGame(){
+  state='playing';paused=false;score=0;speed=4;frame=0;
+  // ninja.y = 腳底 Y 座標，ninja.h = 高度，頭在 y-h
+  ninja={x:80,y:GROUND,w:36,h:48,vy:0,onGround:true,slide:false,slideTimer:0,trail:[]};
+  obstacles=[];coins=[];particles=[];
+  document.getElementById('s-score').textContent='0';
+  cancelAnimationFrame(raf);loop();
+}
+function togglePause(){if(state!=='playing')return;paused=!paused;if(!paused)loop();}
+
+function loop(){
+  if(paused)return;
+  update();draw();
+  raf=requestAnimationFrame(loop);
+}
+
+function update(){
+  if(state!=='playing')return;
+  frame++;score+=0.1;speed=4+score*0.003;
+  if(!ninja.onGround)ninja.vy+=0.6;
+  ninja.y+=ninja.vy;
+  if(ninja.y>=GROUND){ninja.y=GROUND;ninja.vy=0;ninja.onGround=true;}
+  if(ninja.slideTimer>0){
+    ninja.slideTimer--;
+    ninja.slide=ninja.slideTimer>0;
+    ninja.h=ninja.slide?24:48;
+  }
+  ninja.trail.unshift({x:ninja.x,y:ninja.y,h:ninja.h});
+  if(ninja.trail.length>8)ninja.trail.pop();
+
+  // 生成障礙
+  if(frame%Math.max(60,90-Math.floor(score/100))===0){
+    const type=Math.random()<0.3?'bird':'block';
+    const bh=type==='bird'?28:Math.random()<0.5?40:60;
+    // bird 飛在空中；block 在地面，y 是障礙物頂部
+    const by=type==='bird'?(GROUND-80):(GROUND-bh);
+    obstacles.push({x:W+20,y:by,w:28,h:bh,type});
+  }
+  if(frame%45===0)coins.push({x:W+10,y:GROUND-40-Math.random()*60,r:8,collected:false});
+
+  obstacles.forEach(o=>o.x-=speed);
+  obstacles=obstacles.filter(o=>o.x>-60);
+  coins.forEach(c=>c.x-=speed);
+  coins=coins.filter(c=>c.x>-20&&!c.collected);
+
+  // 撿金幣（忍者中心點 vs 金幣）
+  coins.forEach(c=>{
+    const nx=ninja.x+ninja.w/2, ny=ninja.y-ninja.h/2;
+    if(!c.collected&&Math.abs(nx-c.x)<22&&Math.abs(ny-c.y)<22){
+      c.collected=true;score+=10;
+      for(let i=0;i<6;i++)particles.push({x:c.x,y:c.y,vx:(Math.random()-0.5)*4,vy:-Math.random()*3-1,life:30,color:'#FFD700'});
+    }
+  });
+  particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life--;});
+  particles=particles.filter(p=>p.life>0);
+
+  // 碰撞檢測：忍者 box = (x, y-h, w, h)，障礙物 box = (ox, oy, ow, oh)
+  // 加內縮 margin 讓判定更寬鬆
+  const margin=6;
+  const nx1=ninja.x+margin, nx2=ninja.x+ninja.w-margin;
+  const ny1=ninja.y-ninja.h+margin, ny2=ninja.y-margin;
+  for(const o of obstacles){
+    if(nx2>o.x+margin && nx1<o.x+o.w-margin && ny2>o.y+margin && ny1<o.y+o.h-margin){
+      die(); return;
+    }
+  }
+  document.getElementById('s-score').textContent=Math.floor(score);
+}
+
+function die(){
+  state='dead';cancelAnimationFrame(raf);
+  if(score>best){best=score;document.getElementById('s-best').textContent=Math.floor(best);}
+  draw();
+  ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.fillStyle='#FF6B6B';ctx.font='bold 36px Segoe UI';ctx.fillText('遊戲結束！',W/2,110);
+  ctx.fillStyle='#FFD700';ctx.font='bold 20px Segoe UI';ctx.fillText('得分：'+Math.floor(score),W/2,148);
+  ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font='15px Segoe UI';ctx.fillText('點擊「開始」再玩',W/2,178);
+}
+
+function draw(){
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#0d0d1a');grad.addColorStop(1,'#1a1a3e');
+  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+  // 星星
+  ctx.fillStyle='rgba(255,255,255,0.4)';
+  for(let i=0;i<30;i++){ctx.beginPath();ctx.arc((i*37+(frame||0)*0.2)%W,i*7%120,1,0,Math.PI*2);ctx.fill();}
+  // 地面
+  ctx.fillStyle='#1a3a5c';ctx.fillRect(0,GROUND,W,H-GROUND);
+  ctx.fillStyle='#00FFAA';ctx.fillRect(0,GROUND-2,W,3);
+  // 背景建築
+  ctx.fillStyle='rgba(0,255,170,0.05)';
+  [60,120,180,250,310,380,440].forEach((x,i)=>{
+    const bh=40+i%3*20;const bx=(x-(frame||0)*0.5+W*2)%W;
+    ctx.fillRect(bx,GROUND-bh,30,bh);
+  });
+
+  if(ninja){
+    // 殘影
+    ninja.trail.forEach((t,i)=>{
+      ctx.fillStyle='rgba(0,255,170,'+(0.03*(8-i))+')';
+      rrect(t.x,t.y-t.h,36,t.h,6);ctx.fill();
+    });
+    drawNinja();
+
+    // 障礙物
+    obstacles.forEach(o=>{
+      if(o.type==='bird'){
+        ctx.font='28px serif';ctx.textAlign='left';
+        ctx.fillText('🦅',o.x-4,o.y+o.h);
+      } else {
+        const og=ctx.createLinearGradient(o.x,o.y,o.x+o.w,o.y);
+        og.addColorStop(0,'#FF6B6B');og.addColorStop(1,'#FF4444');
+        ctx.fillStyle=og;rrect(o.x,o.y,o.w,o.h,4);ctx.fill();
+        ctx.strokeStyle='#FF8888';ctx.lineWidth=1;ctx.stroke();
+      }
+    });
+
+    // 金幣
+    coins.forEach(c=>{
+      ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,Math.PI*2);
+      ctx.fillStyle='#FFD700';ctx.fill();
+      ctx.strokeStyle='#FFA500';ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,0.6)';ctx.beginPath();ctx.arc(c.x-2,c.y-2,3,0,Math.PI*2);ctx.fill();
+    });
+
+    // 粒子
+    particles.forEach(p=>{
+      const a=p.life/30;
+      ctx.globalAlpha=a;
+      ctx.fillStyle=p.color;
+      ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+    });
+
+    ctx.fillStyle='rgba(255,255,255,0.8)';ctx.font='bold 14px Segoe UI';ctx.textAlign='left';
+    ctx.fillText('🪙 '+Math.floor(score),10,22);
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='12px Segoe UI';ctx.fillText('速度 x'+speed.toFixed(1),10,38);
+  }
+
+  if(state==='idle'){
+    ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(0,0,W,H);
+    ctx.textAlign='center';
+    ctx.fillStyle='#00FFAA';ctx.font='bold 32px Segoe UI';ctx.fillText('🥷 忍者跑酷',W/2,110);
+    ctx.fillStyle='rgba(255,255,255,0.7)';ctx.font='16px Segoe UI';ctx.fillText('跳過障礙、收集金幣！',W/2,148);
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.font='13px Segoe UI';ctx.fillText('按「開始」或空白鍵開始',W/2,175);
+  }
+}
+
+function drawNinja(){
+  const x=ninja.x, y=ninja.y, h=ninja.h;
+  // 陰影
+  ctx.fillStyle='rgba(0,0,0,0.3)';ctx.beginPath();ctx.ellipse(x+18,y+3,14,4,0,0,Math.PI*2);ctx.fill();
+  // 身體（從 y-h 到 y）
+  ctx.fillStyle='#222244';rrect(x+4,y-h+h/3,28,h*2/3,4);ctx.fill();
+  // 頭部
+  const headR=ninja.slide?10:14;
+  const headY=y-h+(ninja.slide?10:headR+2);
+  ctx.fillStyle='#2a2a5a';ctx.beginPath();ctx.arc(x+18,headY,headR,0,Math.PI*2);ctx.fill();
+  // 頭帶
+  ctx.strokeStyle='#FF4444';ctx.lineWidth=3;ctx.beginPath();
+  ctx.arc(x+18,headY,headR,Math.PI*0.7,Math.PI*2.3);ctx.stroke();
+  // 眼睛
+  ctx.fillStyle='#00FFAA';ctx.beginPath();ctx.arc(x+22,headY-2,2.5,0,Math.PI*2);ctx.fill();
+  // 披風
+  ctx.strokeStyle='#FF6B6B';ctx.lineWidth=4;ctx.beginPath();
+  ctx.moveTo(x+12,y-h+h/3+2);ctx.lineTo(x+4,y-h+h/3+12);ctx.stroke();
+  // 腿部動畫
+  const leg=Math.sin(frame*0.3)*15;
+  ctx.strokeStyle='#333366';ctx.lineWidth=7;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(x+18,y-h/4);ctx.lineTo(x+12+leg,y);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x+18,y-h/4);ctx.lineTo(x+24-leg,y);ctx.stroke();
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump();}
+  if(e.code==='ArrowDown'){e.preventDefault();slideDown();}
+  if(state==='idle')startGame();
+});
+cv.addEventListener('click',()=>{if(state==='idle')startGame();else jump();});
+let touchStartY=0;
+cv.addEventListener('touchstart',e=>{touchStartY=e.touches[0].clientY;if(state==='idle'){startGame();return;}},{passive:true});
+cv.addEventListener('touchend',e=>{
+  const dy=e.changedTouches[0].clientY-touchStartY;
+  if(dy>30)slideDown();else jump();
+},{passive:true});
+function jump(){if(ninja&&ninja.onGround&&state==='playing'){ninja.vy=-13;ninja.onGround=false;}}
+function slideDown(){if(ninja&&ninja.onGround&&state==='playing'){ninja.slideTimer=40;}}
+draw();
+</script>
+</body>
+</html>
